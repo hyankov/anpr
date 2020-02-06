@@ -1,0 +1,11 @@
+{
+    "python.linting.flake8Enabled": true,
+    "python.linting.enabled": true,
+    "python.linting.flake8Args": [
+        "--ignore=E126,E501"
+    ],
+    "python.pythonPath": ".env\\Scripts\\python.exe",
+    "files.exclude": {
+        ".env": true
+    }
+}
