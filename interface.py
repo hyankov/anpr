@@ -9,6 +9,7 @@ from typing import Any
 
 # 3rd party imports
 import cv2
+import imutils
 
 # Local imports
 from threadable import ConsumerProducer
@@ -34,7 +35,7 @@ class Cv2UserInterface(ConsumerProducer):
 
         super().__init__(limit=limit)
 
-        self._polling_queue_sleep = 0
+        self._main_loop_sleep = 0
         self._is_polling_queue = True
 
     def _consume(self, item: Any) -> Any:
@@ -63,6 +64,8 @@ class Cv2UserInterface(ConsumerProducer):
         Called when the service is stopped.
         """
 
+        super()._service_stopped()
+
         # Main UI loop ended, destroy all windows
         cv2.destroyAllWindows()
 
@@ -73,7 +76,9 @@ class Cv2UserInterface(ConsumerProducer):
         Called when the service is started.
         """
 
+        super()._service_started()
+
         # Prepare the visual window
-        cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)  # cv2.WND_PROP_FULLSCREEN)
+        cv2.namedWindow(self.window_name)  # cv2.WND_PROP_FULLSCREEN)
         # cv2.resizeWindow(self.window_name, 320, 240)
         # cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)

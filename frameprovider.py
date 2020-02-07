@@ -18,6 +18,9 @@ from threadable import ConsumerProducer
 
 
 class RandomStoredImageFrameProvider(ConsumerProducer):
+    channel_raw = "raw"
+    channel_highlighted = "highlighted"
+
     def __init__(self, folder: str, limit=0):
         """
         Description
@@ -30,6 +33,7 @@ class RandomStoredImageFrameProvider(ConsumerProducer):
 
         self._folder = folder
         self._is_polling_queue = True
+        self._main_loop_sleep = 1
 
     def _produce(self, item: Any) -> Any:
         """
@@ -46,7 +50,16 @@ class RandomStoredImageFrameProvider(ConsumerProducer):
         The next photo.
         """
 
-        return {ConsumerProducer.channel_main: cv2.imread(random.choice(glob.glob(os.path.join(self._folder, "*.jpg"))))}
+        next_image = cv2.imread(random.choice(glob.glob(os.path.join(self._folder, "*.jpg"))))
+
+        if item:
+            # overlay the highlighted object
+            a, b = item
+            cv2.rectangle(next_image, a, b, (0, 0, 255), 3)
+
+            return {self.channel_highlighted: next_image}
+        else:
+            return {self.channel_raw: next_image}
 
 
 class VideoFrameProvider(ConsumerProducer):
@@ -70,6 +83,7 @@ class VideoFrameProvider(ConsumerProducer):
         self._source = source
         self._stream = None
         self._is_polling_queue = True
+        # self._main_loop_sleep = 0.5
 
     def _produce(self, item: Any) -> Any:
         """
@@ -90,7 +104,7 @@ class VideoFrameProvider(ConsumerProducer):
 
         if grabbed:
             if item:
-                # overlay the highlight (there's slight delay)
+                # overlay the highlighted object
                 a, b = item
                 cv2.rectangle(frame, a, b, (0, 0, 255), 3)
 
@@ -116,6 +130,8 @@ class VideoFrameProvider(ConsumerProducer):
         --
         Called when the service is started.
         """
+
+        super()._service_started()
 
         # Get a handle on the stream
         self._stream = cv2.VideoCapture(self._source)

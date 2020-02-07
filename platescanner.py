@@ -25,10 +25,13 @@ if __name__ == '__main__':
     pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
     # Create services
-    interface = ui.Cv2UserInterface()
-    frame_provider = fp.VideoFrameProvider('images\\VID_20200205_080142.mp4')
-    object_finder = of.ObjectFinder('classifiers\\generic_license_plates.xml')
-    ocr = ocr.Ocr()
+    interface = ui.Cv2UserInterface(24)
+    frame_provider = fp.VideoFrameProvider(
+        #'images'
+        'images\\VID_20200205_080142.mp4'
+    )
+    object_finder = of.ObjectFinder('classifiers\\generic_license_plates.xml', 3)
+    ocr_service = ocr.Ocr(5)
     plate_lookup = pl.PlateLookup()
 
     # Highlighted frames go to ...
@@ -52,11 +55,11 @@ if __name__ == '__main__':
     # Cropped objects go to ...
     object_finder.out_channels[of.ObjectFinder.channel_crop] = [
         # OCR
-        ocr
+        ocr_service
     ]
 
     # OCRed text goes to ...
-    ocr.out_channels[cp.channel_main] = [
+    ocr_service.out_channels[cp.channel_main] = [
         # Plate Lookup
         plate_lookup
     ]
@@ -68,7 +71,7 @@ if __name__ == '__main__':
 
     # Start services
     plate_lookup.start()
-    ocr.start()
+    ocr_service.start()
     object_finder.start()
     frame_provider.start()
 
@@ -78,5 +81,5 @@ if __name__ == '__main__':
     # Interface stopped, stop the services
     frame_provider.stop()
     object_finder.stop()
-    ocr.stop()
+    ocr_service.stop()
     plate_lookup.stop()

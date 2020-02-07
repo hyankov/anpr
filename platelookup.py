@@ -55,4 +55,5 @@ class PlateLookup(ConsumerProducer):
         """
 
         if item:
-            return self._lookup(item)
+            info = self._lookup(item)
+            return info

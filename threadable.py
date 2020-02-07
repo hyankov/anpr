@@ -31,7 +31,7 @@ class ConsumerProducer:
         """
 
         # See https://docs.python.org/3/library/queue.html
-        self.queue = None  # queue.Queue
+        self.queue = queue.Queue(1)  # Size 1, until we start the worker
         self.out_channels = {self.channel_main: []}  # type: Dict[str, List[Any]]
 
         self._queue_limit = limit
@@ -42,7 +42,7 @@ class ConsumerProducer:
         # Whether the queue reading is blocking and if it's not, how long
         # to sleep before polling.
         self._is_polling_queue = False
-        self._polling_queue_sleep = 0.02
+        self._main_loop_sleep = 0.03
 
     def _get_next_job(self) -> Any:
         """
@@ -56,20 +56,17 @@ class ConsumerProducer:
             # Immediately return a loop breaker
             return self._main_loop_breaker
 
-        if not self._is_polling_queue:
-            # Non-polling queue
-            return self.queue.get()
-        else:
-            # Polling queue
-            try:
+        try:
+            if not self._is_polling_queue:
+                # Non-polling queue
+                return self.queue.get(timeout=1)
+            else:
+                # Polling queue
                 # See https://docs.python.org/3/library/queue.html#queue.Queue.get_nowait
                 return self.queue.get_nowait()
-            except queue.Empty:
-                # Queue is empty
-                pass
-
-            # Sleep before polling again
-            time.sleep(self._polling_queue_sleep)
+        except queue.Empty:
+            # Queue is empty
+            pass
 
     def _consume(self, item: Any) -> Any:
         """
@@ -116,8 +113,6 @@ class ConsumerProducer:
         that's processing input items, until service is stopped.
         """
 
-        self._stop_requested = False
-
         # Clear the queue
         self.queue = queue.Queue(self._queue_limit)
 
@@ -132,17 +127,23 @@ class ConsumerProducer:
             results = self._produce(self._consume(job))
 
             if self.out_channels and results is not None:
-                # Publish the result to all subscribers
+                # Publish the non-None result to all subscribers
                 for r_channel in results.keys():
                     if r_channel in self.out_channels.keys():
                         for subscriber in self.out_channels[r_channel]:
-                            try:
-                                subscriber.queue.put_nowait(results[r_channel])
-                            except queue.Full:
-                                pass
+                            result = results[r_channel]
+                            if result is not None:
+                                try:
+                                    subscriber.queue.put_nowait(result)
+                                except queue.Full:
+                                    pass
+
+            # Sleep before polling again
+            time.sleep(self._main_loop_sleep)
 
         # The service stopped
         self._service_stopped()
+        self._stop_requested = False
 
     def _service_stopped(self) -> None:
         """
@@ -152,7 +153,7 @@ class ConsumerProducer:
         Called when the service is stopped.
         """
 
-        pass
+        print(self.__class__.__name__, "service stopped")
 
     def _service_started(self) -> None:
         """
@@ -171,15 +172,18 @@ class ConsumerProducer:
         Stops processing jobs.
         """
 
-        # Signal breaking the loop
-        self._stop_requested = True
+        if not self._stop_requested:
+            # Signal breaking the loop
+            self._stop_requested = True
 
-        # Finish the thread
-        if self._thread is not None:
-            self._thread.join()
+            # Finish the thread
+            if self._thread is not None:
+                self._thread.join()
 
-            # Indicate we can start again
-            self._thread = None
+                # Indicate we can start again
+                self._thread = None
+
+                print(self.__class__.__name__, "thread joined")
 
     def start(self, threaded=True) -> bool:
         """
