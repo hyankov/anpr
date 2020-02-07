@@ -31,7 +31,12 @@ if __name__ == '__main__':
     frame_provider = fp.VideoFrameProvider('images\\VID_20200205_080142.mp4')
 
     frame_provider._out_channels = {
-            cp.channel_main: [
+            fp.VideoFrameProvider.channel_highlighted: [
+                # Highlighted frames go only to the UI
+                interface
+            ],
+            fp.VideoFrameProvider.channel_raw: [
+                # Raw frames go to UI and classifier
                 interface,
                 classifier.ObjectFinder(
                     'classifiers\\generic_license_plates.xml',
@@ -52,9 +57,9 @@ if __name__ == '__main__':
                                     ]
                                 })
                         ]
-                    }, 5)
+                    }, 3)
             ]
-        }
+    }
 
     frame_provider.start()
 

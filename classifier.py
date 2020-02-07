@@ -44,6 +44,8 @@ class ObjectFinder(ConsumerProducer):
         self.min_object_size = (125, 40)
         self.max_object_size = (125 * 3, 40 * 3)
         self.y_crop_ratio = 0.25
+        self.scale = 1.08       # 1.05 to 1.4
+        self.min_neighbors = 4  # 3 to 6
 
     def _crop_image(self, image, rect):
         x, y, w, h = self._compute_safe_region(image.shape, rect)
@@ -79,12 +81,13 @@ class ObjectFinder(ConsumerProducer):
 
         # Only process the center of the image
         # TODO: Calibration (choose what part of the screen to process)
-        cropped_image = original_image[int(orig_y * self.y_crop_ratio): orig_y - int(orig_y * self.y_crop_ratio), 0: orig_x]
+        y_padding = int(orig_y * self.y_crop_ratio)
+        cropped_image = original_image[y_padding: orig_y - y_padding, 0: orig_x]
 
         watches = self._watch_cascade.detectMultiScale(
             cropped_image,
-            1.05,
-            3,
+            self.scale,
+            self.min_neighbors,
             minSize=self.min_object_size,
             maxSize=self.max_object_size)
 
@@ -109,7 +112,16 @@ class ObjectFinder(ConsumerProducer):
             cropped = self._crop_image(cropped_image, (int(x), int(y), int(w), int(h))).copy()
 
             # Get the object highlight (rectangle around it)
-            crop_rectangle = ((int(x), int(y)), (int(x + w), int(y + h)))
+            crop_rectangle = (
+                (
+                    int(x),
+                    int(y) + y_padding
+                ),
+                (
+                    int((x + w) * self.scale),
+                    int((y + y_padding + h) * self.scale)
+                )
+            )
 
         return (cropped, crop_rectangle)
 

@@ -39,6 +39,7 @@ class ConsumerProducer:
         self._thread = None  # type: threading.Thread
         self._sentinel = "##thread circuit breaker##"  # queue circut breaker
         self._is_blocking = True
+        self._non_blocking_thread_sleep = 0.02
 
     def _get_next(self) -> Any:
         """
@@ -62,7 +63,7 @@ class ConsumerProducer:
                 return self.queue.get_nowait()
             except queue.Empty:
                 # Queue is empty
-                time.sleep(0.001)
+                time.sleep(self._non_blocking_thread_sleep)
 
     def _consume(self, item: Any) -> Any:
         """
@@ -93,8 +94,9 @@ class ConsumerProducer:
 
         Returns
         --
-        The result of processing the item. Will be passed
-        to the subscribers.
+        Results on different channels, to be routed to the
+        subscribers of those channels. By default, returns on
+        the main channel.
         """
 
         # return through the default channel

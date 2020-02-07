@@ -49,6 +49,9 @@ class RandomStoredImageFrameProvider(ConsumerProducer):
 
 
 class VideoFrameProvider(ConsumerProducer):
+    channel_raw = "raw"
+    channel_highlighted = "highlighted"
+
     def __init__(self, source: Any = 0, out_channels: Dict[str, List[Any]] = None):
         """
         Description
@@ -89,7 +92,9 @@ class VideoFrameProvider(ConsumerProducer):
                 a, b = item
                 cv2.rectangle(frame, a, b, (0, 0, 255), 3)
 
-            return {ConsumerProducer.channel_main: frame}
+                return {self.channel_highlighted: frame}
+            else:
+                return {self.channel_raw: frame}
 
     def _service_stopped(self) -> None:
         """
@@ -97,6 +102,8 @@ class VideoFrameProvider(ConsumerProducer):
         --
         Called when the service is stopped.
         """
+
+        super()._service_stopped()
 
         # Release the stream
         self._stream.release()

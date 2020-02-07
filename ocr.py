@@ -33,7 +33,8 @@ class Ocr(ConsumerProducer):
         if item is None:
             return
 
-        # cv2.imshow("plate_crop", plate_crop)
+        # cv2.imshow("plate_crop", item)
+        # cv2.waitKey(1)
 
         plate_crop = cv2.resize(item, None, fx=2, fy=2, interpolation=cv2.INTER_LINEAR)
 

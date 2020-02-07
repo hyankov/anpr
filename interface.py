@@ -67,5 +67,6 @@ class Cv2UserInterface(ConsumerProducer):
         return self
 
     def start_ui(self) -> None:
+        self._non_blocking_thread_sleep = 0
         self._is_blocking = False
         return super().start(False)
