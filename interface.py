@@ -31,9 +31,6 @@ class Cv2UserInterface(ConsumerProducer):
         --
         - item - the frame to render.
 
-        Returns
-        --
-        None
         """
 
         if item is not None:
@@ -64,7 +61,7 @@ class Cv2UserInterface(ConsumerProducer):
 
         # Prepare the visual window
         cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)  # cv2.WND_PROP_FULLSCREEN)
-        cv2.resizeWindow(self.window_name, 320, 240)
+        # cv2.resizeWindow(self.window_name, 320, 240)
         # cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
         return self

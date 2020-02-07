@@ -8,7 +8,7 @@ Provides various frame sources (camera, video, random pictures)
 import random
 import glob
 import os
-from typing import Any, List
+from typing import Any, Dict, List
 
 # 3rd party imports
 import cv2
@@ -18,15 +18,15 @@ from threadable import ConsumerProducer
 
 
 class RandomStoredImageFrameProvider(ConsumerProducer):
-    def __init__(self, folder: str, subscribers: List[Any] = []):
+    def __init__(self, folder: str, out_channels: Dict[str, List[Any]] = None):
         """
         Description
         --
         - folder - the folder where the .jpg files are
-        - subscribers - (see base)
+        - out_channels - (see base)
         """
 
-        super().__init__(subscribers=subscribers)
+        super().__init__(out_channels=out_channels)
         self._folder = folder
 
     def _get_next(self) -> Any:
@@ -48,11 +48,11 @@ class RandomStoredImageFrameProvider(ConsumerProducer):
         The next photo.
         """
 
-        return cv2.imread(random.choice(glob.glob(os.path.join(self._folder, "*.jpg"))))
+        return {ConsumerProducer.channel_main: cv2.imread(random.choice(glob.glob(os.path.join(self._folder, "*.jpg"))))}
 
 
 class VideoFrameProvider(ConsumerProducer):
-    def __init__(self, source: Any = 0, subscribers: List[Any] = []):
+    def __init__(self, source: Any = 0, out_channels: Dict[str, List[Any]] = None):
         """
         Description
         --
@@ -61,10 +61,10 @@ class VideoFrameProvider(ConsumerProducer):
         Parameters
         --
         - source - 0 for camera, otherwise str path to video.
-        - subscribers - (see base)
+        - out_channels - (see base)
         """
 
-        super().__init__(subscribers=subscribers)
+        super().__init__(out_channels=out_channels)
         self._source = source
         self._stream = None
 
@@ -90,7 +90,7 @@ class VideoFrameProvider(ConsumerProducer):
         grabbed, frame = self._stream.read()
 
         if grabbed:
-            return frame
+            return {ConsumerProducer.channel_main: frame}
 
     def _service_stopped(self) -> None:
         """

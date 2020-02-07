@@ -7,7 +7,8 @@ Module providing threading.
 # System imports
 import queue
 import threading
-from typing import Any, List
+import time
+from typing import Any, Dict, List
 
 
 class ConsumerProducer:
@@ -16,7 +17,9 @@ class ConsumerProducer:
     output to subscribers.
     """
 
-    def __init__(self, subscribers: List[Any] = [], limit: int = 0):
+    channel_main = ''
+
+    def __init__(self, out_channels: Dict[str, List[Any]] = None, limit: int = 0):
         """
         Description
         --
@@ -24,8 +27,7 @@ class ConsumerProducer:
 
         Parameters
         --
-        - subscribers - the list of subscribers to push produced
-        items to.
+        - out_channels - subscriber channels, to push results to.
         - limit - the queue limit.
         """
 
@@ -33,7 +35,7 @@ class ConsumerProducer:
         self.queue = queue.Queue(limit)
         self.stopped = True
 
-        self._subscribers = subscribers
+        self._out_channels = out_channels or {self.channel_main: []}
         self._thread = None  # type: threading.Thread
 
     def _get_next(self) -> Any:
@@ -70,7 +72,7 @@ class ConsumerProducer:
 
         return item
 
-    def _produce(self, item: Any) -> Any:
+    def _produce(self, item: Any) -> Dict[str, Any]:
         """
         Description
         --
@@ -86,7 +88,8 @@ class ConsumerProducer:
         to the subscribers.
         """
 
-        return item
+        # return through the default channel
+        return {self.channel_main: item}
 
     def _work(self) -> None:
         """
@@ -97,19 +100,22 @@ class ConsumerProducer:
         """
 
         while not self.stopped:
+            time.sleep(0.001)
+
             # Read the next item, consume it and produce
-            result = self._produce(
+            results = self._produce(
                         self._consume(
                             self._get_next()))
 
-            # TODO: Different results to different subscribers
-            # Publish the result to all subscribers
-            if result is not None:
-                for subscriber in self._subscribers:
-                    try:
-                        subscriber.queue.put_nowait(result)
-                    except queue.Full:
-                        pass
+            if self._out_channels and results is not None:
+                # Publish the result to all subscribers
+                for r_channel in results.keys():
+                    if r_channel in self._out_channels.keys():
+                        for subscriber in self._out_channels[r_channel]:
+                            try:
+                                subscriber.queue.put_nowait(results[r_channel])
+                            except queue.Full:
+                                pass
 
         # The service stopped
         self._service_stopped()
@@ -133,8 +139,10 @@ class ConsumerProducer:
 
         self.stopped = True
 
-        for subscriber in self._subscribers:
-            subscriber.stop()
+        # Stop the subscribers first
+        for channel in self._out_channels.keys():
+            for subscriber in self._out_channels[channel]:
+                subscriber.stop()
 
         if self._thread:
             self._thread.join()
@@ -148,8 +156,9 @@ class ConsumerProducer:
 
         if self.stopped:
             # Start the subscribers first
-            for subscriber in self._subscribers:
-                subscriber.start()
+            for channel in self._out_channels.keys():
+                for subscriber in self._out_channels[channel]:
+                    subscriber.start()
 
             # Start the worker in a thread
             self.stopped = False

@@ -54,5 +54,5 @@ class PlateLookup(ConsumerProducer):
         License plate information.
         """
 
-        if item is not None:
+        if item:
             return self._lookup(item)

@@ -6,6 +6,7 @@
     ],
     "python.pythonPath": ".env\\Scripts\\python.exe",
     "files.exclude": {
-        ".env": true
+        ".env": true,
+        "platescanner.egg-info": true
     }
 }
