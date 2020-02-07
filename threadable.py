@@ -19,7 +19,7 @@ class ConsumerProducer:
 
     channel_main = ''
 
-    def __init__(self, out_channels: Dict[str, List[Any]] = None, limit: int = 0):
+    def __init__(self, limit: int = 0):
         """
         Description
         --
@@ -27,43 +27,49 @@ class ConsumerProducer:
 
         Parameters
         --
-        - out_channels - subscriber channels, to push results to.
         - limit - the queue limit.
         """
 
         # See https://docs.python.org/3/library/queue.html
-        self.queue = queue.Queue(limit)
-        self.stopped = True
+        self.queue = None  # queue.Queue
+        self.out_channels = {self.channel_main: []}  # type: Dict[str, List[Any]]
 
-        self._out_channels = out_channels or {self.channel_main: []}
+        self._queue_limit = limit
         self._thread = None  # type: threading.Thread
-        self._sentinel = "##thread circuit breaker##"  # queue circut breaker
-        self._is_blocking = True
-        self._non_blocking_thread_sleep = 0.02
+        self._main_loop_breaker = "##thread circuit breaker##"  # queue circut breaker
+        self._stop_requested = False
 
-    def _get_next(self) -> Any:
+        # Whether the queue reading is blocking and if it's not, how long
+        # to sleep before polling.
+        self._is_polling_queue = False
+        self._polling_queue_sleep = 0.02
+
+    def _get_next_job(self) -> Any:
         """
         Description
         --
-        Gets the next item. By default, from the queue.
+        Gets the next job, from a queue. Whether it's blocking
+        while waiting for a job or not depends on `self._is_polling_queue`
         """
 
-        # See https://docs.python.org/3/library/queue.html#queue.Queue.get_nowait
+        if self._stop_requested:
+            # Immediately return a loop breaker
+            return self._main_loop_breaker
 
-        # The service has stopped, signal kill the main loop
-        if self.stopped:
-            return self._sentinel
-
-        if self._is_blocking:
-            # Blocking get
+        if not self._is_polling_queue:
+            # Non-polling queue
             return self.queue.get()
         else:
-            # Non-blocking get
+            # Polling queue
             try:
+                # See https://docs.python.org/3/library/queue.html#queue.Queue.get_nowait
                 return self.queue.get_nowait()
             except queue.Empty:
                 # Queue is empty
-                time.sleep(self._non_blocking_thread_sleep)
+                pass
+
+            # Sleep before polling again
+            time.sleep(self._polling_queue_sleep)
 
     def _consume(self, item: Any) -> Any:
         """
@@ -110,17 +116,26 @@ class ConsumerProducer:
         that's processing input items, until service is stopped.
         """
 
+        self._stop_requested = False
+
+        # Clear the queue
+        self.queue = queue.Queue(self._queue_limit)
+
+        # The service started
+        self._service_started()
+
         # *** MAIN THREAD LOOP ***
-        # Encountering `_sentinel` will break us out.
-        for job in iter(self._get_next, self._sentinel):
+        # Encountering `_main_loop_breaker` will break us out and effectively
+        # end the thread.
+        for job in iter(self._get_next_job, self._main_loop_breaker):
             # Consume the input job and produce output jobs
             results = self._produce(self._consume(job))
 
-            if self._out_channels and results is not None:
+            if self.out_channels and results is not None:
                 # Publish the result to all subscribers
                 for r_channel in results.keys():
-                    if r_channel in self._out_channels.keys():
-                        for subscriber in self._out_channels[r_channel]:
+                    if r_channel in self.out_channels.keys():
+                        for subscriber in self.out_channels[r_channel]:
                             try:
                                 subscriber.queue.put_nowait(results[r_channel])
                             except queue.Full:
@@ -133,50 +148,71 @@ class ConsumerProducer:
         """
         Description
         --
-        Called when the service is stopped. Override.
+        Override.
+        Called when the service is stopped.
         """
 
-        # TODO: Empty queue?
+        pass
+
+    def _service_started(self) -> None:
+        """
+        Description
+        --
+        Override.
+        Called when the service is started.
+        """
+
         pass
 
     def stop(self) -> None:
         """
         Description
         --
-        Stops processing queued work items.
+        Stops processing jobs.
         """
 
-        if not self.stopped:
-            self.stopped = True
+        # Signal breaking the loop
+        self._stop_requested = True
 
-            # Stop the subscribers first
-            for channel in self._out_channels.keys():
-                for subscriber in self._out_channels[channel]:
-                    subscriber.stop()
+        # Finish the thread
+        if self._thread is not None:
+            self._thread.join()
 
-            if self._thread:
-                self._thread.join()
+            # Indicate we can start again
+            self._thread = None
 
-    def start(self, threaded=True) -> Any:
+    def start(self, threaded=True) -> bool:
         """
         Description
         --
-        Starts processing queued work items.
+        Starts processing jobs.
+
+        Parameters
+        --
+        - threaded - True to start in a separate thread,
+        otherwise False to run in current thread (will
+        block).
+
+        Returns
+        --
+        True if the service was started, otherwise
+        False.
         """
 
-        if self.stopped:
-            # Start the worker in a thread
-            self.stopped = False
-
-            # Start the subscribers first
-            for channel in self._out_channels.keys():
-                for subscriber in self._out_channels[channel]:
-                    subscriber.start()
-
-            if threaded:
+        if threaded:
+            if self._thread is None:
+                # Start doing work, in separate thread
                 self._thread = threading.Thread(target=self._work)
                 self._thread.start()
-            else:
-                self._work()
 
-        return self
+                # The service was started
+                return True
+            else:
+                # The service wasn't started, seems to be already
+                # started.
+                return False
+        else:
+            # Start doing work, in the main thread
+            self._work()
+
+            return True

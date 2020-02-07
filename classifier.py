@@ -19,7 +19,7 @@ class ObjectFinder(ConsumerProducer):
     channel_crop = 'crop'
     channel_highlight = 'highlight'
 
-    def __init__(self, cascade_file: str, out_channels=None, limit=0) -> None:
+    def __init__(self, cascade_file: str, limit=0) -> None:
         """
         Description
         --
@@ -29,11 +29,10 @@ class ObjectFinder(ConsumerProducer):
         --
         - cascade_file - the path to the cascade file to use. It dictates what
         objects are detected.
-        - out_channels - (see base)
         - limit - (see base)
         """
 
-        super().__init__(out_channels=out_channels, limit=limit)
+        super().__init__(limit=limit)
 
         if not cascade_file:
             raise ValueError("cascade_file is required")

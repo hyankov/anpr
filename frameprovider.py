@@ -8,7 +8,7 @@ Provides various frame sources (camera, video, random pictures)
 import random
 import glob
 import os
-from typing import Any, Dict, List
+from typing import Any
 
 # 3rd party imports
 import cv2
@@ -18,17 +18,18 @@ from threadable import ConsumerProducer
 
 
 class RandomStoredImageFrameProvider(ConsumerProducer):
-    def __init__(self, folder: str, out_channels: Dict[str, List[Any]] = None):
+    def __init__(self, folder: str, limit=0):
         """
         Description
         --
-        - folder - the folder where the .jpg files are
-        - out_channels - (see base)
+        - folder - the folder where the .jpg files are.
+        - limit - (see base)
         """
 
-        super().__init__(out_channels=out_channels)
+        super().__init__(limit=limit)
+
         self._folder = folder
-        self._is_blocking = False
+        self._is_polling_queue = True
 
     def _produce(self, item: Any) -> Any:
         """
@@ -52,7 +53,7 @@ class VideoFrameProvider(ConsumerProducer):
     channel_raw = "raw"
     channel_highlighted = "highlighted"
 
-    def __init__(self, source: Any = 0, out_channels: Dict[str, List[Any]] = None):
+    def __init__(self, source: Any = 0, limit=0):
         """
         Description
         --
@@ -61,13 +62,14 @@ class VideoFrameProvider(ConsumerProducer):
         Parameters
         --
         - source - 0 for camera, otherwise str path to video.
-        - out_channels - (see base)
+        - limit - (see base)
         """
 
-        super().__init__(out_channels=out_channels)
+        super().__init__(limit=limit)
+
         self._source = source
         self._stream = None
-        self._is_blocking = False
+        self._is_polling_queue = True
 
     def _produce(self, item: Any) -> Any:
         """
@@ -108,15 +110,12 @@ class VideoFrameProvider(ConsumerProducer):
         # Release the stream
         self._stream.release()
 
-    def start(self) -> Any:
+    def _service_started(self) -> None:
         """
         Description
         --
-        Overrides.
-        Starts capture.
+        Called when the service is started.
         """
 
         # Get a handle on the stream
         self._stream = cv2.VideoCapture(self._source)
-
-        return super().start()

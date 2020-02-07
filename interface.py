@@ -21,6 +21,22 @@ class Cv2UserInterface(ConsumerProducer):
 
     window_name = "Main"
 
+    def __init__(self, limit=0):
+        """
+        Description
+        --
+        Initializes the instance.
+
+        Parameters
+        --
+        - limit - (see base)
+        """
+
+        super().__init__(limit=limit)
+
+        self._polling_queue_sleep = 0
+        self._is_polling_queue = True
+
     def _consume(self, item: Any) -> Any:
         """
         Description
@@ -47,26 +63,17 @@ class Cv2UserInterface(ConsumerProducer):
         Called when the service is stopped.
         """
 
-        super()._service_stopped()
-
         # Main UI loop ended, destroy all windows
         cv2.destroyAllWindows()
 
-    def start(self) -> Any:
+    def _service_started(self) -> None:
         """
         Description
         --
-        Overrides.
+        Called when the service is started.
         """
 
         # Prepare the visual window
         cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)  # cv2.WND_PROP_FULLSCREEN)
         # cv2.resizeWindow(self.window_name, 320, 240)
         # cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-
-        return self
-
-    def start_ui(self) -> None:
-        self._non_blocking_thread_sleep = 0
-        self._is_blocking = False
-        return super().start(False)
