@@ -1,7 +1,7 @@
 """
 Description
 --
-Finds plate numbers on the frame.
+Finds objects on the frame.
 """
 
 # System imports
@@ -15,13 +15,35 @@ from numpy import ndarray
 from threadable import ConsumerProducer
 
 
-class PlateFinder(ConsumerProducer):
+class ObjectFinder(ConsumerProducer):
     channel_crop = 'crop'
     channel_highlight = 'highlight'
 
-    min_plate_size = (125, 40)
-    max_plate_size = (125 * 3, 40 * 3)
-    y_crop_ratio = 0.25
+    def __init__(self, cascade_file: str, out_channels=None, limit=0) -> None:
+        """
+        Description
+        --
+        Initializes the instance.
+
+        Parameters
+        --
+        - cascade_file - the path to the cascade file to use. It dictates what
+        objects are detected.
+        - out_channels - (see base)
+        - limit - (see base)
+        """
+
+        super().__init__(out_channels=out_channels, limit=limit)
+
+        if not cascade_file:
+            raise ValueError("cascade_file is required")
+
+        # Load the classifier
+        self._watch_cascade = cv2.CascadeClassifier(cascade_file)
+
+        self.min_object_size = (125, 40)
+        self.max_object_size = (125 * 3, 40 * 3)
+        self.y_crop_ratio = 0.25
 
     def _crop_image(self, image, rect):
         x, y, w, h = self._compute_safe_region(image.shape, rect)
@@ -49,7 +71,7 @@ class PlateFinder(ConsumerProducer):
 
         return [left, top, right - left, bottom - top]
 
-    def _get_plate_crops(self, original_image: ndarray) -> Tuple[ndarray, ndarray]:
+    def _get_object_crop(self, original_image: ndarray) -> Tuple[ndarray, ndarray]:
         # See https://stackoverflow.com/a/20805153/253266
         # See https://dev.to/petercour/car-number-plate-detection-with-python-4n7g
 
@@ -63,8 +85,8 @@ class PlateFinder(ConsumerProducer):
             cropped_image,
             1.05,
             3,
-            minSize=self.min_plate_size,
-            maxSize=self.max_plate_size)
+            minSize=self.min_object_size,
+            maxSize=self.max_object_size)
 
         cropped = None
         crop_rectangle = None
@@ -83,14 +105,12 @@ class PlateFinder(ConsumerProducer):
             h += h * 0.3
             """
 
-            # Crop the plate
+            # Crop the object
             cropped = self._crop_image(cropped_image, (int(x), int(y), int(w), int(h))).copy()
 
-            # Highlight the plate
+            # Get the object highlight (rectangle around it)
             crop_rectangle = ((int(x), int(y)), (int(x + w), int(y + h)))
 
-        # TODO: Ideally get crop dimensions only. Then priority queue on
-        # the interface will draw the rectangle on top of the last (or next) frame
         return (cropped, crop_rectangle)
 
     def _consume(self, item: Any) -> Any:
@@ -105,11 +125,11 @@ class PlateFinder(ConsumerProducer):
 
         Returns
         --
-        Tuple: (Plate crop (if any), the original image with rectangle now).
+        Tuple: (Object crop (if any), the original image with rectangle now).
         """
 
         if item is not None:
-            return self._get_plate_crops(item)
+            return self._get_object_crop(item)
 
     def _produce(self, item: Any) -> Any:
         """
@@ -119,7 +139,7 @@ class PlateFinder(ConsumerProducer):
 
         Parameters
         --
-        - item - Tuple: (Plate crop, the original image with rectangle now).
+        - item - Tuple: (Object crop, the original image with rectangle now).
 
         Returns
         --
@@ -128,24 +148,12 @@ class PlateFinder(ConsumerProducer):
         """
 
         if item is not None:
-            plate_crop, crop_rectangle = item
+            object_crop, crop_rectangle = item
 
             return {
                 # Main channel - highlighted image
                 self.channel_highlight: crop_rectangle,
 
-                # Crop channel - the biggest plate on the image
-                self.channel_crop: plate_crop
+                # Crop channel - the biggest object on the image
+                self.channel_crop: object_crop
             }
-
-    def start(self) -> Any:
-        """
-        Description
-        --
-        Overrides.
-        """
-
-        # Load the classifier
-        self._watch_cascade = cv2.CascadeClassifier('cascade.xml')
-
-        return super().start()

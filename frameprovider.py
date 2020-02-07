@@ -74,7 +74,7 @@ class VideoFrameProvider(ConsumerProducer):
 
         Parameters
         --
-        - item - license plate highlight, if any.
+        - item - object highlight, if any.
 
         Returns
         --

@@ -13,7 +13,7 @@ import pytesseract
 
 # Local imports
 import frameprovider as fp
-import platefinder as pf
+import classifier
 import platelookup as pl
 import ocr as ocr
 from interface import Cv2UserInterface
@@ -33,12 +33,13 @@ if __name__ == '__main__':
     frame_provider._out_channels = {
             cp.channel_main: [
                 interface,
-                pf.PlateFinder(
+                classifier.ObjectFinder(
+                    'classifiers\\generic_license_plates.xml',
                     {
-                        pf.PlateFinder.channel_highlight: [
+                        classifier.ObjectFinder.channel_highlight: [
                             frame_provider
                         ],
-                        pf.PlateFinder.channel_crop: [
+                        classifier.ObjectFinder.channel_crop: [
                             ocr.Ocr(
                                 {
                                     cp.channel_main: [
