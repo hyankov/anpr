@@ -28,15 +28,15 @@ if __name__ == '__main__':
     interface = Cv2UserInterface()
 
     # TODO: Fluent syntax for adding subscribers
-    frame_provider = fp.VideoFrameProvider(
-        'images\\VID_20200205_080142.mp4',
-        {
+    frame_provider = fp.VideoFrameProvider('images\\VID_20200205_080142.mp4')
+
+    frame_provider._out_channels = {
             cp.channel_main: [
-                # interface,
+                interface,
                 pf.PlateFinder(
                     {
-                        cp.channel_main: [
-                            interface
+                        pf.PlateFinder.channel_highlight: [
+                            frame_provider
                         ],
                         pf.PlateFinder.channel_crop: [
                             ocr.Ocr(
@@ -45,15 +45,17 @@ if __name__ == '__main__':
                                         pl.PlateLookup(
                                             {
                                                 cp.channel_main: [
-                                                    #interface
+                                                    #frame_provider
                                                 ]
                                             })
                                     ]
-                                }, 5)
+                                })
                         ]
-                    }, 10)
+                    }, 5)
             ]
-        }).start()
+        }
+
+    frame_provider.start()
 
     # Start blocking
     interface.start_ui()

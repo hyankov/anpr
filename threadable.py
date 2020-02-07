@@ -37,6 +37,8 @@ class ConsumerProducer:
 
         self._out_channels = out_channels or {self.channel_main: []}
         self._thread = None  # type: threading.Thread
+        self._sentinel = "##thread circuit breaker##"  # queue circut breaker
+        self._is_blocking = True
 
     def _get_next(self) -> Any:
         """
@@ -45,15 +47,22 @@ class ConsumerProducer:
         Gets the next item. By default, from the queue.
         """
 
-        if not self.queue.empty():
+        # See https://docs.python.org/3/library/queue.html#queue.Queue.get_nowait
+
+        # The service has stopped, signal kill the main loop
+        if self.stopped:
+            return self._sentinel
+
+        if self._is_blocking:
+            # Blocking get
+            return self.queue.get()
+        else:
+            # Non-blocking get
             try:
-                # TODO: Multiple workers, but preserve order
-                # See https://docs.python.org/3/library/queue.html#queue.Queue.get_nowait
                 return self.queue.get_nowait()
-                # self.queue.task_done()
             except queue.Empty:
                 # Queue is empty
-                pass
+                time.sleep(0.001)
 
     def _consume(self, item: Any) -> Any:
         """
@@ -99,13 +108,11 @@ class ConsumerProducer:
         that's processing input items, until service is stopped.
         """
 
-        while not self.stopped:
-            time.sleep(0.001)
-
-            # Read the next item, consume it and produce
-            results = self._produce(
-                        self._consume(
-                            self._get_next()))
+        # *** MAIN THREAD LOOP ***
+        # Encountering `_sentinel` will break us out.
+        for job in iter(self._get_next, self._sentinel):
+            # Consume the input job and produce output jobs
+            results = self._produce(self._consume(job))
 
             if self._out_channels and results is not None:
                 # Publish the result to all subscribers
@@ -137,15 +144,16 @@ class ConsumerProducer:
         Stops processing queued work items.
         """
 
-        self.stopped = True
+        if not self.stopped:
+            self.stopped = True
 
-        # Stop the subscribers first
-        for channel in self._out_channels.keys():
-            for subscriber in self._out_channels[channel]:
-                subscriber.stop()
+            # Stop the subscribers first
+            for channel in self._out_channels.keys():
+                for subscriber in self._out_channels[channel]:
+                    subscriber.stop()
 
-        if self._thread:
-            self._thread.join()
+            if self._thread:
+                self._thread.join()
 
     def start(self, threaded=True) -> Any:
         """
@@ -155,13 +163,14 @@ class ConsumerProducer:
         """
 
         if self.stopped:
+            # Start the worker in a thread
+            self.stopped = False
+
             # Start the subscribers first
             for channel in self._out_channels.keys():
                 for subscriber in self._out_channels[channel]:
                     subscriber.start()
 
-            # Start the worker in a thread
-            self.stopped = False
             if threaded:
                 self._thread = threading.Thread(target=self._work)
                 self._thread.start()

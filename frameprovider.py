@@ -28,10 +28,7 @@ class RandomStoredImageFrameProvider(ConsumerProducer):
 
         super().__init__(out_channels=out_channels)
         self._folder = folder
-
-    def _get_next(self) -> Any:
-        # Optimization
-        pass
+        self._is_blocking = False
 
     def _produce(self, item: Any) -> Any:
         """
@@ -67,10 +64,7 @@ class VideoFrameProvider(ConsumerProducer):
         super().__init__(out_channels=out_channels)
         self._source = source
         self._stream = None
-
-    def _get_next(self) -> Any:
-        # Optimization
-        pass
+        self._is_blocking = False
 
     def _produce(self, item: Any) -> Any:
         """
@@ -80,7 +74,7 @@ class VideoFrameProvider(ConsumerProducer):
 
         Parameters
         --
-        - item - ignored.
+        - item - license plate highlight, if any.
 
         Returns
         --
@@ -90,6 +84,11 @@ class VideoFrameProvider(ConsumerProducer):
         grabbed, frame = self._stream.read()
 
         if grabbed:
+            if item:
+                # overlay the highlight (there's slight delay)
+                a, b = item
+                cv2.rectangle(frame, a, b, (0, 0, 255), 3)
+
             return {ConsumerProducer.channel_main: frame}
 
     def _service_stopped(self) -> None:

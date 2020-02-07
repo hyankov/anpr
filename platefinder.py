@@ -17,6 +17,8 @@ from threadable import ConsumerProducer
 
 class PlateFinder(ConsumerProducer):
     channel_crop = 'crop'
+    channel_highlight = 'highlight'
+
     min_plate_size = (125, 40)
     max_plate_size = (125 * 3, 40 * 3)
     y_crop_ratio = 0.25
@@ -65,6 +67,8 @@ class PlateFinder(ConsumerProducer):
             maxSize=self.max_plate_size)
 
         cropped = None
+        crop_rectangle = None
+
         if watches is not None and len(watches) > 0:
             # Widest rectangle first
             watch = sorted(watches, key=lambda watch: watch[2])[0]
@@ -83,11 +87,11 @@ class PlateFinder(ConsumerProducer):
             cropped = self._crop_image(cropped_image, (int(x), int(y), int(w), int(h))).copy()
 
             # Highlight the plate
-            cv2.rectangle(original_image, (int(x), int(y)), (int(x + w), int(y + h)), (0, 0, 255), 3)
+            crop_rectangle = ((int(x), int(y)), (int(x + w), int(y + h)))
 
         # TODO: Ideally get crop dimensions only. Then priority queue on
         # the interface will draw the rectangle on top of the last (or next) frame
-        return (cropped, original_image)
+        return (cropped, crop_rectangle)
 
     def _consume(self, item: Any) -> Any:
         """
@@ -124,11 +128,11 @@ class PlateFinder(ConsumerProducer):
         """
 
         if item is not None:
-            plate_crop, highlighted_image = item
+            plate_crop, crop_rectangle = item
 
             return {
                 # Main channel - highlighted image
-                ConsumerProducer.channel_main: highlighted_image,
+                self.channel_highlight: crop_rectangle,
 
                 # Crop channel - the biggest plate on the image
                 self.channel_crop: plate_crop
