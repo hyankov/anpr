@@ -11,7 +11,7 @@ import time
 from typing import Any, Dict, List
 
 
-class ConsumerProducer:
+class WorkerPipe:
     """
     Simple class that consumes input and pushes produced
     output to subscribers.
@@ -32,8 +32,8 @@ class ConsumerProducer:
 
         # See https://docs.python.org/3/library/queue.html
         self.queue = queue.Queue(1)  # Size 1, until we start the worker
-        self.out_channels = {self.channel_main: []}  # type: Dict[str, List[Any]]
 
+        self._out_channels = {}  # type: Dict[str, List[Any]]
         self._queue_limit = limit
         self._thread = None  # type: threading.Thread
         self._main_loop_breaker = "##thread circuit breaker##"  # queue circut breaker
@@ -42,7 +42,7 @@ class ConsumerProducer:
         # Whether the queue reading is blocking and if it's not, how long
         # to sleep before polling.
         self._is_polling_queue = False
-        self._main_loop_sleep = 0.03
+        self._main_loop_sleep = 0.01
 
     def _get_next_job(self) -> Any:
         """
@@ -126,15 +126,15 @@ class ConsumerProducer:
             # Consume the input job and produce output jobs
             results = self._produce(self._consume(job))
 
-            if self.out_channels and results is not None:
+            if self._out_channels and results is not None:
                 # Publish the non-None result to all subscribers
                 for r_channel in results.keys():
-                    if r_channel in self.out_channels.keys():
-                        for subscriber in self.out_channels[r_channel]:
+                    if r_channel in self._out_channels.keys():
+                        for subscriber in self._out_channels[r_channel]:
                             result = results[r_channel]
                             if result is not None:
                                 try:
-                                    subscriber.queue.put_nowait(result)
+                                    subscriber.receive(result)
                                 except queue.Full:
                                     pass
 
@@ -165,58 +165,106 @@ class ConsumerProducer:
 
         pass
 
+    def wait_to_finish(self):
+        """
+        Description
+        --
+        Waits for the thread to finish (blocking).
+        """
+
+        # Finish the thread
+        if self._thread is not None:
+            self._thread.join()
+
+            # Indicate we can start again
+            self._thread = None
+
+            print(self.__class__.__name__, "thread joined")
+
+    def link_to(self, recipient: Any, channel: str = None) -> Any:
+        """
+        Description
+        --
+        Link the `channel` output of the pipe to `recipient`. The
+        `recupient` object must have a method `receive`, to receive
+        the output of this pipe. Ideally, this is another worker pipe.
+
+        Parameters
+        --
+        - recipient - the object which will receive the channel
+        output of this pipe.
+        - channel - the output channel of this pipe, which we link to
+        the `recipient`. If none specified, it will be the default,
+        main channel.
+
+        Returns
+        --
+        Self, for fluent API.
+        """
+
+        if not recipient:
+            raise ValueError("recipient is required!")
+        else:
+            receive_method = getattr(recipient, "receive", None)
+            if not callable(receive_method):
+                raise ValueError("recipient must have a receive() method")
+
+        if not channel:
+            channel = self.channel_main
+
+        if channel not in self._out_channels:
+            self._out_channels[channel] = []
+
+        self._out_channels[channel].append(recipient)
+
+        return self
+
+    def receive(self, job) -> None:
+        """
+        Description
+        --
+        Receive input job.
+
+        Parameters
+        --
+        - job - the received input job.
+        """
+
+        self.queue.put_nowait(job)
+
     def stop(self) -> None:
         """
         Description
         --
-        Stops processing jobs.
+        Stops the worker pipe.
         """
 
         if not self._stop_requested:
             # Signal breaking the loop
             self._stop_requested = True
 
-            # Finish the thread
-            if self._thread is not None:
-                self._thread.join()
+            # Wait for the thread to finish
+            self.wait_to_finish()
 
-                # Indicate we can start again
-                self._thread = None
-
-                print(self.__class__.__name__, "thread joined")
-
-    def start(self, threaded=True) -> bool:
+    def start(self) -> Any:
         """
         Description
         --
-        Starts processing jobs.
-
-        Parameters
-        --
-        - threaded - True to start in a separate thread,
-        otherwise False to run in current thread (will
-        block).
+        Start the worker pipe.
 
         Returns
         --
-        True if the service was started, otherwise
-        False.
+        Self, for fluent API.
         """
 
-        if threaded:
-            if self._thread is None:
-                # Start doing work, in separate thread
-                self._thread = threading.Thread(target=self._work)
-                self._thread.start()
+        if self._thread:
+            # The service wasn't started, seems to be already
+            # started.
+            return False
 
-                # The service was started
-                return True
-            else:
-                # The service wasn't started, seems to be already
-                # started.
-                return False
-        else:
-            # Start doing work, in the main thread
-            self._work()
+        # Start doing work, in separate thread
+        self._thread = threading.Thread(target=self._work)
+        self._thread.start()
 
-            return True
+        # The service was started
+        return self

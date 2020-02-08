@@ -17,68 +17,43 @@ import classifier as of
 import platelookup as pl
 import ocr as ocr
 import interface as ui
-from threadable import ConsumerProducer as cp
 
 
 """ Entry point """
 if __name__ == '__main__':
     pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
-    # Create services
-    interface = ui.Cv2UserInterface(24)
-    frame_provider = fp.VideoFrameProvider(
-        #'images'
-        'images\\VID_20200205_080142.mp4'
-    )
-    object_finder = of.ObjectFinder('classifiers\\generic_license_plates.xml', 3)
-    ocr_service = ocr.Ocr(5)
+    # Create worker pipes
+    interface = ui.Cv2UserInterface(limit=40)
+    frame_provider = fp.VideoFrameProvider('images\\VID_20200205_080142.mp4')
+    object_finder = of.ObjectFinder('classifiers\\generic_license_plates.xml', limit=3)
     plate_lookup = pl.PlateLookup()
+    ocr_service = ocr.Ocr(limit=5)
 
-    # Highlighted frames go to ...
-    frame_provider.out_channels[fp.VideoFrameProvider.channel_highlighted] = [
-        # UI
-        interface
-    ]
+    # Link the pipes
+    frame_provider\
+        .link_to(interface)\
+        .link_to(object_finder)\
+        .link_to(interface, frame_provider.channel_highlighted)
 
-    # Raw frames go to ...
-    frame_provider.out_channels[fp.VideoFrameProvider.channel_raw] = [
-        # UI and Classifier
-        interface, object_finder
-    ]
+    ocr_service = ocr_service.link_to(plate_lookup)
 
-    # Highlighted objects go to ...
-    object_finder.out_channels[of.ObjectFinder.channel_highlight] = [
-        # Frame provider
-        frame_provider
-    ]
+    object_finder\
+        .link_to(frame_provider)\
+        .link_to(ocr_service, object_finder.channel_crop)
 
-    # Cropped objects go to ...
-    object_finder.out_channels[of.ObjectFinder.channel_crop] = [
-        # OCR
-        ocr_service
-    ]
+    # plate_lookup.link_to(frame_provider)
 
-    # OCRed text goes to ...
-    ocr_service.out_channels[cp.channel_main] = [
-        # Plate Lookup
-        plate_lookup
-    ]
-
-    # Plate info goes to ...
-    plate_lookup.out_channels[cp.channel_main] = [
-        # TODO: frame_provider
-    ]
-
-    # Start services
+    # Start the pipes
     plate_lookup.start()
     ocr_service.start()
     object_finder.start()
+    # TODO: On frame provider stopped
     frame_provider.start()
+    interface.start().wait_to_finish()
 
-    # Start blocking
-    interface.start(False)
-
-    # Interface stopped, stop the services
+    # TODO: On UI stopped
+    # Interface stopped, stop the pipes
     frame_provider.stop()
     object_finder.stop()
     ocr_service.stop()

@@ -9,13 +9,12 @@ from typing import Any
 
 # 3rd party imports
 import cv2
-import imutils
 
 # Local imports
-from threadable import ConsumerProducer
+from threadable import WorkerPipe
 
 
-class Cv2UserInterface(ConsumerProducer):
+class Cv2UserInterface(WorkerPipe):
     """
     Simple cv2-based user interface.
     """
@@ -35,7 +34,6 @@ class Cv2UserInterface(ConsumerProducer):
 
         super().__init__(limit=limit)
 
-        self._main_loop_sleep = 0
         self._is_polling_queue = True
 
     def _consume(self, item: Any) -> Any:

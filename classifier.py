@@ -12,12 +12,11 @@ import cv2
 from numpy import ndarray
 
 # Local imports
-from threadable import ConsumerProducer
+from threadable import WorkerPipe
 
 
-class ObjectFinder(ConsumerProducer):
+class ObjectFinder(WorkerPipe):
     channel_crop = 'crop'
-    channel_highlight = 'highlight'
 
     def __init__(self, cascade_file: str, limit=0) -> None:
         """
@@ -163,7 +162,7 @@ class ObjectFinder(ConsumerProducer):
 
             return {
                 # Main channel - highlighted image
-                self.channel_highlight: crop_rectangle,
+                self.channel_main: crop_rectangle,
 
                 # Crop channel - the biggest object on the image
                 self.channel_crop: object_crop

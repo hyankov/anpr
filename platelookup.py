@@ -9,10 +9,10 @@ import functools
 from typing import Any, Dict
 
 # Local imports
-from threadable import ConsumerProducer
+from threadable import WorkerPipe
 
 
-class PlateLookup(ConsumerProducer):
+class PlateLookup(WorkerPipe):
     @functools.lru_cache
     def _lookup(self, plate: str) -> Dict[str, Any]:
         """

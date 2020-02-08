@@ -14,11 +14,10 @@ from typing import Any
 import cv2
 
 # Local imports
-from threadable import ConsumerProducer
+from threadable import WorkerPipe
 
 
-class RandomStoredImageFrameProvider(ConsumerProducer):
-    channel_raw = "raw"
+class RandomStoredImageFrameProvider(WorkerPipe):
     channel_highlighted = "highlighted"
 
     def __init__(self, folder: str, limit=0):
@@ -59,11 +58,10 @@ class RandomStoredImageFrameProvider(ConsumerProducer):
 
             return {self.channel_highlighted: next_image}
         else:
-            return {self.channel_raw: next_image}
+            return {self.channel_main: next_image}
 
 
-class VideoFrameProvider(ConsumerProducer):
-    channel_raw = "raw"
+class VideoFrameProvider(WorkerPipe):
     channel_highlighted = "highlighted"
 
     def __init__(self, source: Any = 0, limit=0):
@@ -110,7 +108,10 @@ class VideoFrameProvider(ConsumerProducer):
 
                 return {self.channel_highlighted: frame}
             else:
-                return {self.channel_raw: frame}
+                return {self.channel_main: frame}
+        else:
+            # End of the stream
+            self.stop()
 
     def _service_stopped(self) -> None:
         """

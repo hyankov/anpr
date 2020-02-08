@@ -11,10 +11,10 @@ from PIL import Image
 from typing import Any
 
 # Local imports
-from threadable import ConsumerProducer
+from threadable import WorkerPipe
 
 
-class Ocr(ConsumerProducer):
+class Ocr(WorkerPipe):
     def _consume(self, item: Any) -> Any:
         """
         Description
