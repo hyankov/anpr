@@ -81,6 +81,10 @@ class VideoFrameProvider(WorkerPipe):
         self._source = source
         self._stream = None
         self._is_polling_queue = True
+
+        self._max_cached_highlights = 30
+        self._cached_highlights = 0
+        self._last_highlight = None
         # self._main_loop_sleep = 0.5
 
     def _produce(self, item: Any) -> Any:
@@ -102,11 +106,32 @@ class VideoFrameProvider(WorkerPipe):
 
         if grabbed:
             if item:
-                # overlay the highlighted object
-                a, b = item
-                cv2.rectangle(frame, a, b, (0, 0, 255), 3)
+                # Pulled a fresh highlight, reset cache
+                self._last_highlight = item
+                self._cached_highlights = 0
+            else:
+                # No highlight, get from cache
+                if self._last_highlight is not None:
+                    item = self._last_highlight
+                    self._cached_highlights += 1
 
-                return {self.channel_highlighted: frame}
+                    if self._cached_highlights == self._max_cached_highlights:
+                        # Expire the cache
+                        self._last_highlight = None
+                        self._cached_highlights = 0
+
+            if item:
+                # We have pulled a highlight out of the queue, highlight the frame
+                a, b = item
+                highlighted_frame = frame.copy()
+                cv2.rectangle(highlighted_frame, a, b, (0, 0, 255), 3)
+
+                if self._cached_highlights:
+                    # Was pulled from the cache, broadcast on main too
+                    return {self.channel_highlighted: highlighted_frame, self.channel_main: frame}
+                else:
+                    # Was fresh highlight, don't broadcast on main
+                    return {self.channel_highlighted: highlighted_frame}
             else:
                 return {self.channel_main: frame}
         else:

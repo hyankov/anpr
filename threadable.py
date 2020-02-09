@@ -46,8 +46,8 @@ class WorkerPipe:
         # Whether the queue reading is blocking and if it's not, how long
         # to sleep before polling.
         self._is_polling_queue = False
-        self._polling_queue_sleep_s = 2
-        self._main_loop_sleep_s = 0.01
+        self._polling_queue_sleep_s = 2  # Sleep if queue is empty
+        self._main_loop_sleep_s = 0.01  # Give other threads a breather
         self._main_loop_breaker = "##thread circuit breaker##"  # queue circut breaker
         self._main_loop_stop_requested = False
         self._thread = None  # type: threading.Thread

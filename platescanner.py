@@ -8,9 +8,6 @@ Author
 Hristo Yankov
 """
 
-# System imports
-import sys
-
 # 3rd party imports
 import pytesseract
 
@@ -29,10 +26,10 @@ if __name__ == '__main__':
     pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
     # Create worker pipes
-    interface = ui.Cv2UserInterface(limit=40)
+    interface = ui.Cv2UserInterface(limit=24)
     frame_provider = fp.VideoFrameProvider('images\\VID_20200205_080142.mp4')
-    object_finder = of.ObjectFinder('classifiers\\generic_license_plates.xml', limit=3)
-    plate_lookup = pl.PlateLookup()
+    object_finder = of.ObjectFinder('classifiers\\generic_license_plates.xml', limit=1)
+    plate_lookup = pl.PlateLookup(limit=5)
     ocr_service = ocr.Ocr(limit=5)
 
     # Link the pipes
@@ -41,7 +38,7 @@ if __name__ == '__main__':
         .link_to(object_finder)\
         .link_to(interface, frame_provider.channel_highlighted)
 
-    ocr_service = ocr_service.link_to(plate_lookup)
+    ocr_service.link_to(plate_lookup)
 
     object_finder\
         .link_to(frame_provider)\

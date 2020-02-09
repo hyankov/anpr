@@ -36,6 +36,8 @@ class ObjectFinder(WorkerPipe):
         if not cascade_file:
             raise ValueError("cascade_file is required")
 
+        self._main_loop_sleep_s = 0.1
+
         # Load the classifier
         self._watch_cascade = cv2.CascadeClassifier(cascade_file)
 
