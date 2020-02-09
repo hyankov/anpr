@@ -113,26 +113,22 @@ class VideoFrameProvider(WorkerPipe):
             # End of the stream
             self.stop()
 
-    def _service_stopped(self) -> None:
+    def _on_starting(self) -> None:
         """
         Description
         --
-        Called when the service is stopped.
+        Called before the main loop.
         """
-
-        super()._service_stopped()
-
-        # Release the stream
-        self._stream.release()
-
-    def _service_started(self) -> None:
-        """
-        Description
-        --
-        Called when the service is started.
-        """
-
-        super()._service_started()
 
         # Get a handle on the stream
         self._stream = cv2.VideoCapture(self._source)
+
+    def _on_stopped(self) -> None:
+        """
+        Description
+        --
+        Called after the main loop.
+        """
+
+        # Release the stream
+        self._stream.release()

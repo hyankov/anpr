@@ -8,6 +8,9 @@ Author
 Hristo Yankov
 """
 
+# System imports
+import sys
+
 # 3rd party imports
 import pytesseract
 
@@ -17,10 +20,12 @@ import classifier as of
 import platelookup as pl
 import ocr as ocr
 import interface as ui
+import logger
 
 
 """ Entry point """
 if __name__ == '__main__':
+    logger.setup()
     pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
     # Create worker pipes
@@ -48,12 +53,10 @@ if __name__ == '__main__':
     plate_lookup.start()
     ocr_service.start()
     object_finder.start()
-    # TODO: On frame provider stopped
-    frame_provider.start()
-    interface.start().wait_to_finish()
+    frame_provider.start()  # TODO: On frame provider stopped
+    interface.start(True)
 
-    # TODO: On UI stopped
-    # Interface stopped, stop the pipes
+    # Interface stopped, stop the pipes ...
     frame_provider.stop()
     object_finder.stop()
     ocr_service.stop()

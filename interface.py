@@ -55,28 +55,24 @@ class Cv2UserInterface(WorkerPipe):
             # ESC pressed, exit
             self.stop()
 
-    def _service_stopped(self) -> None:
+    def _on_starting(self) -> None:
         """
         Description
         --
-        Called when the service is stopped.
+        Called before the main loop.
         """
-
-        super()._service_stopped()
-
-        # Main UI loop ended, destroy all windows
-        cv2.destroyAllWindows()
-
-    def _service_started(self) -> None:
-        """
-        Description
-        --
-        Called when the service is started.
-        """
-
-        super()._service_started()
 
         # Prepare the visual window
         cv2.namedWindow(self.window_name)  # cv2.WND_PROP_FULLSCREEN)
         # cv2.resizeWindow(self.window_name, 320, 240)
         # cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+    def _on_stopped(self) -> None:
+        """
+        Description
+        --
+        Called after the main loop.
+        """
+
+        # Main UI loop ended, destroy all windows
+        cv2.destroyAllWindows()
