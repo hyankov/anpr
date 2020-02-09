@@ -22,9 +22,9 @@ class WorkerPipe:
     output to other pipes.
     """
 
-    channel_main = '_main_'
+    channel_main = 'channel_main'
 
-    def __init__(self, limit: int = 0):
+    def __init__(self, jobs_limit: int = 0):
         """
         Description
         --
@@ -32,24 +32,21 @@ class WorkerPipe:
 
         Parameters
         --
-        - limit - the queue limit.
+        - jobs_limit - the queue limit.
         """
 
         self._logger = log.get_module_logger(self.__class__.__name__)
 
         # See https://docs.python.org/3/library/queue.html
-        self.queue = queue.Queue(limit)
+        self.queue = queue.Queue(jobs_limit)
 
         # Connections to other pipes/receivers
         self._recipients = {}  # type: Dict[str, List[Any]]
 
-        # Whether the queue reading is blocking and if it's not, how long
-        # to sleep before polling.
-        self._is_polling_queue = False
-        self._polling_queue_sleep_s = 2  # Sleep if queue is empty
-        self._main_loop_sleep_s = 0.01  # Give other threads a breather
-        self._main_loop_breaker = "##thread circuit breaker##"  # queue circut breaker
-        self._main_loop_stop_requested = False
+        self._wait_for_job_s = 1  # How long to wait for a job. 0 for no waiting.
+        self._main_loop_sleep_s = 0.02  # Give other threads a breather
+        self._main_loop_sentry = "##thread circuit breaker##"  # queue circut breaker
+        self._main_loop_break_requested = False  # When true, main loop will get sentry
         self._thread = None  # type: threading.Thread
 
     def _get_next_job(self) -> Any:
@@ -60,20 +57,20 @@ class WorkerPipe:
         """
 
         # Is the loop breaker tripped?
-        if self._main_loop_stop_requested:
-            self._logger.debug("Returning main loop breaker")
+        if self._main_loop_break_requested:
+            self._logger.debug("Yielding main loop breaker")
 
             # Immediately return a loop breaker
-            return self._main_loop_breaker
+            return self._main_loop_sentry
 
         try:
-            if not self._is_polling_queue:
-                # Non-polling queue
-                return self.queue.get(timeout=self._polling_queue_sleep_s)
-            else:
-                # Polling queue
+            if not self._wait_for_job_s:
+                # Not waiting for a job
                 # See https://docs.python.org/3/library/queue.html#queue.Queue.get_nowait
                 return self.queue.get_nowait()
+            else:
+                # Waiting for a job, maximum of X seconds
+                return self.queue.get(timeout=self._wait_for_job_s)
         except queue.Empty:
             # Queue is empty
             pass
@@ -126,13 +123,14 @@ class WorkerPipe:
         self.queue = queue.Queue(self.queue.maxsize)
 
         # The main loop is about the start
-        self._logger.debug("Main loop starting")
+        self._logger.debug("On start")
         self._on_starting()
+        self._logger.debug("Main loop starting")
 
         # *** MAIN LOOP ***
         # Encountering `_main_loop_breaker` will break us out and effectively
         # end the thread.
-        for job in iter(self._get_next_job, self._main_loop_breaker):
+        for job in iter(self._get_next_job, self._main_loop_sentry):
             # Consume the input job and produce output jobs
             results = self._produce(self._consume(job))
 
@@ -149,10 +147,11 @@ class WorkerPipe:
                                 except queue.Full:
                                     pass
 
-            # Sleep before polling again
+            # Sleep before next job, to give other threads a chance
             time.sleep(self._main_loop_sleep_s)
 
         # The main loop ended
+        self._logger.debug("On stopped")
         self._on_stopped()
         self._logger.debug("Main loop stopped")
 
@@ -228,6 +227,10 @@ class WorkerPipe:
         --
         Starts the service.
 
+        Parameters
+        --
+        - blocking - wait for the thread to finish.
+
         Returns
         --
         Self, for fluent API.
@@ -236,7 +239,7 @@ class WorkerPipe:
         self._logger.debug("Service start")
 
         # Reset the breaker
-        self._main_loop_stop_requested = False
+        self._main_loop_break_requested = False
 
         # Start the main loop in a separate thread
         self._thread = threading.Thread(target=self._main_loop)
@@ -265,6 +268,6 @@ class WorkerPipe:
         self._logger.debug("Service stop")
 
         # Signal breaking the loop
-        self._main_loop_stop_requested = True
+        self._main_loop_break_requested = True
 
         return self

@@ -56,6 +56,6 @@ class Ocr(WorkerPipe):
             config='--psm 7 -l eng -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')
 
         # TODO: Confidence
+        self._logger.info(text)
 
-        print(text)
         return text

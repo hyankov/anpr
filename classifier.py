@@ -16,9 +16,10 @@ from threadable import WorkerPipe
 
 
 class ObjectFinder(WorkerPipe):
-    channel_crop = 'crop'
+    channel_found_object_crop = 'channel_found_object_crop'
+    channel_found_object_coords = 'channel_found_object_coords'
 
-    def __init__(self, cascade_file: str, limit=0) -> None:
+    def __init__(self, cascade_file: str, jobs_limit=0) -> None:
         """
         Description
         --
@@ -28,24 +29,23 @@ class ObjectFinder(WorkerPipe):
         --
         - cascade_file - the path to the cascade file to use. It dictates what
         objects are detected.
-        - limit - (see base)
+        - jobs_limit - (see base)
         """
 
-        super().__init__(limit=limit)
+        super().__init__(jobs_limit=jobs_limit)
 
         if not cascade_file:
             raise ValueError("cascade_file is required")
 
-        self._main_loop_sleep_s = 0.1
-
-        # Load the classifier
-        self._watch_cascade = cv2.CascadeClassifier(cascade_file)
-
+        # Tuned for license plates, by default
         self.min_object_size = (125, 40)
         self.max_object_size = (125 * 3, 40 * 3)
         self.y_crop_ratio = 0.25
-        self.scale = 1.08       # 1.05 to 1.4
+        self.scale = 1.10       # 1.05 to 1.4
         self.min_neighbors = 4  # 3 to 6
+
+        # Load the classifier
+        self._watch_cascade = cv2.CascadeClassifier(cascade_file)
 
     def _crop_image(self, image, rect):
         x, y, w, h = self._compute_safe_region(image.shape, rect)
@@ -163,9 +163,9 @@ class ObjectFinder(WorkerPipe):
             object_crop, crop_rectangle = item
 
             return {
-                # Main channel - highlighted image
-                self.channel_main: crop_rectangle,
+                # Coords channel - detected object coordinates on frame
+                self.channel_found_object_coords: crop_rectangle,
 
-                # Crop channel - the biggest object on the image
-                self.channel_crop: object_crop
+                # Crop channel - cropped image of the detected object
+                self.channel_found_object_crop: object_crop
             }

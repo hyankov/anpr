@@ -21,21 +21,6 @@ class Cv2UserInterface(WorkerPipe):
 
     window_name = "Main"
 
-    def __init__(self, limit=0):
-        """
-        Description
-        --
-        Initializes the instance.
-
-        Parameters
-        --
-        - limit - (see base)
-        """
-
-        super().__init__(limit=limit)
-
-        self._is_polling_queue = True
-
     def _consume(self, item: Any) -> Any:
         """
         Description
@@ -48,12 +33,15 @@ class Cv2UserInterface(WorkerPipe):
 
         """
 
-        if item is not None:
+        if item is None:
+            # Bad/dead feed
+            self.stop()
+        else:
             cv2.imshow(self.window_name, item)
 
-        if cv2.waitKey(1) == 27:
-            # ESC pressed, exit
-            self.stop()
+            if cv2.waitKey(1) == 27:
+                # ESC pressed, exit
+                self.stop()
 
     def _on_starting(self) -> None:
         """
@@ -61,6 +49,9 @@ class Cv2UserInterface(WorkerPipe):
         --
         Called before the main loop.
         """
+
+        # We sleep with waitKey()
+        self._main_loop_sleep_s = 0
 
         # Prepare the visual window
         cv2.namedWindow(self.window_name)  # cv2.WND_PROP_FULLSCREEN)

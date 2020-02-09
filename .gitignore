@@ -21,3 +21,4 @@ platescanner.egg-info
 # End of https://www.gitignore.io/api/visualstudiocode
 
 images
+logs
