@@ -1,15 +1,9 @@
 """
 Description
 --
-License plate scanner on the go.
-
-Author
---
-Hristo Yankov
+Setting up the workers for a license plate recognition
+and lookup.
 """
-
-# 3rd party imports
-import pytesseract
 
 # Local imports
 import feed as fp
@@ -17,17 +11,17 @@ import classifier as of
 import platelookup as pl
 import ocr as ocr
 import interface as ui
-import logger
+import log
 
 
 """ Entry point """
 if __name__ == '__main__':
-    logger.setup()
-    pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
+    # Load logging configuration
+    log.config()
 
     # Create workers
-    interface = ui.Cv2UserInterface(jobs_limit=30)
-    video_feed = fp.VideoFeed('images\\VID_20200205_080142.mp4', jobs_limit=60)
+    interface = ui.Cv2UserInterface(False, jobs_limit=30)
+    video_feed = fp.VideoFeed('videos\\mn_video1.mp4', jobs_limit=60)
     object_finder = of.ObjectFinder('classifiers\\mn_license_plates.xml', jobs_limit=1)
     plate_lookup = pl.PlateLookup(jobs_limit=5)
     ocr_service = ocr.Ocr(jobs_limit=5)
@@ -41,7 +35,9 @@ if __name__ == '__main__':
     object_finder\
         .link_to(video_feed, object_finder.channel_object_rectangle)\
         .link_to(ocr_service, object_finder.channel_object_crop)\
-        .y_crop_ratio = 0.25  # Crop upper and lower 1/4 of the images
+        .y_crop_ratio = 0.16  # Crop upper and lower 1/6th of the images
+    object_finder.scale = 1.4
+    object_finder.min_neighbors = 6
 
     # OCR -> Plate Lookup
     ocr_service.link_to(plate_lookup, ocr_service.channel_text)

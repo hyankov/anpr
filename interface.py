@@ -21,7 +21,7 @@ class Cv2UserInterface(Worker):
 
     window_name = "Main"
 
-    def __init__(self, jobs_limit=0):
+    def __init__(self, full_screen=True, jobs_limit=0):
         """
         Description
         --
@@ -29,10 +29,13 @@ class Cv2UserInterface(Worker):
 
         Parameters
         --
+        - full_screen - True for fullscreen, otherwise False.
         - jobs_limit - (see base)
         """
 
         super().__init__(jobs_limit=jobs_limit)
+
+        self._full_screen = full_screen
 
         # We sleep with waitKey()
         self.main_loop_sleep_s = 0
@@ -62,9 +65,10 @@ class Cv2UserInterface(Worker):
         Called before the main loop.
         """
 
-        # Prepare the visual window
-        cv2.namedWindow(self.window_name, cv2.WND_PROP_FULLSCREEN)
-        cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        if self._full_screen:
+            # Prepare the visual window
+            cv2.namedWindow(self.window_name, cv2.WND_PROP_FULLSCREEN)
+            cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     def _on_stopped(self) -> None:
         """

@@ -1,11 +1,21 @@
+"""
+Logging.
+"""
+
 # System imports
 import logging
 from logging.config import fileConfig
 from os import path
 
 
-def setup():
-    log_file_path = path.join(path.dirname(path.abspath(__file__)), 'app.ini')
+def config() -> None:
+    """
+    Description
+    --
+    Loads the logging configuration.
+    """
+
+    log_file_path = path.join(path.dirname(path.abspath(__file__)), 'log.ini')
     fileConfig(log_file_path)
 
 

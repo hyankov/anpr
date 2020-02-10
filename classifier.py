@@ -37,12 +37,11 @@ class ObjectFinder(Worker):
         if not cascade_file:
             raise ValueError("cascade_file is required")
 
-        self.min_object_size = None  # type: Tuple(int, int)
-        self.max_object_size = None  # type: Tuple(int, int)
-        self.scale = 1.25       # 1.05 to 1.4
-        self.min_neighbors = 5  # 3 to 6
+        self.min_object_size = None     # type: Tuple(int, int)
+        self.max_object_size = None     # type: Tuple(int, int)
+        self.scale = 1.25               # 1.05 to 1.4
+        self.min_neighbors = 5          # 3 to 6
 
-        # TODO: User-specified
         # A crop ratio of 1/4 (0.25) means the image is split in 4 and the
         # upper and bottom 1/4 parts are cropped out. 0 for no-cropping
         self.y_crop_ratio = 0

@@ -16,10 +16,10 @@
 ### Python stuff
 **/__pycache__
 .env/*
-platescanner.egg-info
+*.egg-info
 
 # End of https://www.gitignore.io/api/visualstudiocode
 
-images
+videos
 logs
 training

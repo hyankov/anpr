@@ -17,6 +17,20 @@ from worker import Worker
 class Ocr(Worker):
     channel_text = "channel_text"
 
+    def _pre_process_image(self, img):
+        pre_processed_image = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_LINEAR)
+
+        pre_processed_image = cv2.medianBlur(pre_processed_image, 5)
+        pre_processed_image = cv2.adaptiveThreshold(
+            cv2.cvtColor(pre_processed_image, cv2.COLOR_RGB2GRAY),
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY,
+            11,
+            8)
+
+        return pre_processed_image
+
     def _process_input_job(self, input_job: Any) -> Dict[str, Any]:
         """
         Description
@@ -35,22 +49,13 @@ class Ocr(Worker):
         if input_job is None:
             return
 
-        # cv2.imshow("plate_crop", item)
-        # cv2.waitKey(1)
-
-        image_crop = cv2.resize(input_job, None, fx=2, fy=2, interpolation=cv2.INTER_LINEAR)
+        # TODO: The OCR is of very bad quality right now. Improve.
 
         # Pre-processing
-        image_crop = cv2.medianBlur(image_crop, 5)
-        image_crop = cv2.adaptiveThreshold(
-            cv2.cvtColor(image_crop, cv2.COLOR_RGB2GRAY),
-            255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY,
-            11,
-            8)
+        image_crop = self._pre_process_image(input_job)
 
-        # cv2.imshow("ocr", plate_crop)
+        # cv2.imshow("ocr", image_crop)
+        # cv2.waitKey(1)
 
         # Get the text out of the pre-processed plate image
         text = pytesseract.image_to_string(

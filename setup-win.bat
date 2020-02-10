@@ -11,4 +11,5 @@ call .\.env\Scripts\activate.bat
 python -m pip install --upgrade pip
 
 :: Install the dependencies
+:: python setup.py install
 pip install -e .

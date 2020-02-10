@@ -4,11 +4,10 @@
     "python.linting.flake8Args": [
         "--ignore=E126,E501"
     ],
-    "python.pythonPath": ".env\\Scripts\\python.exe",
+    "python.pythonPath": "d:\\PythonProjects\\anpr\\.env\\Scripts\\python.exe",
     "files.exclude": {
         ".env": true,
-        "images": true,
-        "training": true,
-        "platescanner.egg-info": true
+        "*.egg-info": true,
+        "training": true
     }
 }
