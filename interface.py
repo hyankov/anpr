@@ -5,7 +5,7 @@ User interface module.
 """
 
 # System imports
-from typing import Any
+from typing import Any, Dict
 
 # 3rd party imports
 import cv2
@@ -21,27 +21,39 @@ class Cv2UserInterface(WorkerPipe):
 
     window_name = "Main"
 
-    def _consume(self, item: Any) -> Any:
+    def __init__(self, jobs_limit=0):
         """
         Description
         --
-        Renders the consumed frames.
+        Initializes the instance.
 
         Parameters
         --
-        - item - the frame to render.
-
+        - jobs_limit - (see base)
         """
 
-        if item is None:
-            # Bad/dead feed
-            self.stop()
-        else:
-            cv2.imshow(self.window_name, item)
+        super().__init__(jobs_limit=jobs_limit)
 
-            if cv2.waitKey(1) == 27:
-                # ESC pressed, exit
-                self.stop()
+        # We sleep with waitKey()
+        self.main_loop_sleep_s = 0
+
+    def _process_input_job(self, input_job: Any) -> Dict[str, Any]:
+        """
+        Description
+        --
+        Renders the frame.
+
+        Parameters
+        --
+        - input_job - An image which to render in the UI.
+        """
+
+        if input_job is not None:
+            cv2.imshow(self.window_name, input_job)
+
+        if cv2.waitKey(1) == 27:
+            # ESC pressed, exit
+            self.stop()
 
     def _on_starting(self) -> None:
         """
@@ -49,9 +61,6 @@ class Cv2UserInterface(WorkerPipe):
         --
         Called before the main loop.
         """
-
-        # We sleep with waitKey()
-        self._main_loop_sleep_s = 0
 
         # Prepare the visual window
         cv2.namedWindow(self.window_name)  # cv2.WND_PROP_FULLSCREEN)

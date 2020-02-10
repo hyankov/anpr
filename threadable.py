@@ -18,11 +18,9 @@ import logger as log
 
 class WorkerPipe:
     """
-    A worker 'pipe' that consumes input and pushes produced
+    A worker 'pipe' that reads input and pushes produced
     output to other pipes.
     """
-
-    channel_main = 'channel_main'
 
     def __init__(self, jobs_limit: int = 0):
         """
@@ -35,16 +33,17 @@ class WorkerPipe:
         - jobs_limit - the queue limit.
         """
 
-        self._logger = log.get_module_logger(self.__class__.__name__)
-
         # See https://docs.python.org/3/library/queue.html
         self.queue = queue.Queue(jobs_limit)
+        self.main_loop_sleep_s = 0.02  # Give other threads a breather
+
+        # Logging
+        self._logger = log.get_module_logger(self.__class__.__name__)
 
         # Connections to other pipes/receivers
         self._recipients = {}  # type: Dict[str, List[Any]]
 
         self._wait_for_job_s = 1  # How long to wait for a job. 0 for no waiting.
-        self._main_loop_sleep_s = 0.02  # Give other threads a breather
         self._main_loop_sentry = "##thread circuit breaker##"  # queue circut breaker
         self._main_loop_break_requested = False  # When true, main loop will get sentry
         self._thread = None  # type: threading.Thread
@@ -75,42 +74,23 @@ class WorkerPipe:
             # Queue is empty
             pass
 
-    def _consume(self, item: Any) -> Any:
+    def _process_input_job(self, input_job: Any) -> Dict[str, Any]:
         """
         Description
         --
-        Consumes a work item.
+        Process the input job and produce output.
 
         Parameters
         --
-        - item - the item to consume.
-
-        Returns
-        --
-        The result of the consumption of the item, if any.
-        """
-
-        return item
-
-    def _produce(self, item: Any) -> Dict[str, Any]:
-        """
-        Description
-        --
-        Produces an output, based on the consumed input.
-
-        Parameters
-        --
-        - item - the consumed item to process.
+        - input_job - the job to process.
 
         Returns
         --
         Results on different channels, to be routed to the
-        subscribers of those channels. By default, returns on
-        the main channel.
+        subscribers of those channels.
         """
 
-        # return through the default channel
-        return {self.channel_main: item}
+        pass
 
     def _main_loop(self) -> None:
         """
@@ -127,33 +107,36 @@ class WorkerPipe:
         self._on_starting()
         self._logger.debug("Main loop starting")
 
-        # *** MAIN LOOP ***
-        # Encountering `_main_loop_breaker` will break us out and effectively
-        # end the thread.
-        for job in iter(self._get_next_job, self._main_loop_sentry):
-            # Consume the input job and produce output jobs
-            results = self._produce(self._consume(job))
+        try:
+            # *** MAIN LOOP ***
+            # Encountering `_main_loop_breaker` will break us out and effectively
+            # end the thread.
+            for job in iter(self._get_next_job, self._main_loop_sentry):
+                # Consume the input job and produce output jobs
+                results = self._process_input_job(job)
 
-            # Propagate result to subscribers
-            if self._recipients and results is not None:
-                # Publish the non-None result to all recipients
-                for r_channel in results.keys():
-                    if r_channel in self._recipients.keys():
-                        for recipient in self._recipients[r_channel]:
-                            result = results[r_channel]
-                            if result is not None:
-                                try:
-                                    recipient.receive(result)
-                                except queue.Full:
-                                    pass
+                # Propagate result to subscribers
+                if self._recipients and results is not None:
+                    # Publish the non-None result to all recipients
+                    for r_channel in results.keys():
+                        if r_channel in self._recipients.keys():
+                            for recipient in self._recipients[r_channel]:
+                                result = results[r_channel]
+                                if result is not None:
+                                    try:
+                                        recipient.receive(result)
+                                    except queue.Full:
+                                        self._logger.debug("Queue of {} is full, cannot receive job.".format(recipient))
 
-            # Sleep before next job, to give other threads a chance
-            time.sleep(self._main_loop_sleep_s)
-
-        # The main loop ended
-        self._logger.debug("On stopped")
-        self._on_stopped()
-        self._logger.debug("Main loop stopped")
+                # Sleep before next job, to give other threads a chance
+                time.sleep(self.main_loop_sleep_s)
+        except Exception:
+            self._logger.error("Fatal error in main loop", exc_info=True)
+        finally:
+            # The main loop ended
+            self._logger.debug("On stopped")
+            self._on_stopped()
+            self._logger.debug("Main loop stopped")
 
     def _on_starting(self) -> None:
         """
@@ -198,7 +181,7 @@ class WorkerPipe:
             raise ValueError("recipient is required!")
 
         if not channel:
-            channel = self.channel_main
+            raise ValueError("channel is required")
 
         if channel not in self._recipients:
             self._recipients[channel] = []

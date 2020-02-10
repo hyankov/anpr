@@ -5,7 +5,7 @@ Finds objects on the frame.
 """
 
 # System imports
-from typing import Any, Tuple
+from typing import Any, Dict, Tuple
 
 # 3rd party imports
 import cv2
@@ -91,9 +91,6 @@ class ObjectFinder(WorkerPipe):
             minSize=self.min_object_size,
             maxSize=self.max_object_size)
 
-        cropped = None
-        crop_rectangle = None
-
         if watches is not None and len(watches) > 0:
             # Widest rectangle first
             watch = sorted(watches, key=lambda watch: watch[2])[0]
@@ -123,49 +120,39 @@ class ObjectFinder(WorkerPipe):
                 )
             )
 
-        return (cropped, crop_rectangle)
+            # Found
+            return (cropped, crop_rectangle)
 
-    def _consume(self, item: Any) -> Any:
+        # Not found
+        return None
+
+    def _process_input_job(self, input_job: Any) -> Dict[str, Any]:
         """
         Description
         --
-        Consumes the image frame.
+        Finds object in the image. The input is the image.
 
         Parameters
         --
-        - item - image frame (ndarray)
+        - input_job - image in which to find the object the
+        classifier has been trained for.
 
         Returns
         --
-        Tuple: (Object crop (if any), the original image with rectangle now).
+        If found, tuple of cropped image of the object
+        and rectangle. Otherwise None.
         """
 
-        if item is not None:
-            return self._get_object_crop(item)
+        if input_job is not None:
+            result = self._get_object_crop(input_job)
 
-    def _produce(self, item: Any) -> Any:
-        """
-        Description
-        --
-        Produces an output, based on the consumed input.
+            if result:
+                object_crop, crop_rectangle = result
 
-        Parameters
-        --
-        - item - Tuple: (Object crop, the original image with rectangle now).
+                return {
+                    # Coords channel - detected object coordinates on frame
+                    self.channel_found_object_coords: crop_rectangle,
 
-        Returns
-        --
-        The result of processing the item. Will be passed
-        to the subscribers.
-        """
-
-        if item is not None:
-            object_crop, crop_rectangle = item
-
-            return {
-                # Coords channel - detected object coordinates on frame
-                self.channel_found_object_coords: crop_rectangle,
-
-                # Crop channel - cropped image of the detected object
-                self.channel_found_object_crop: object_crop
-            }
+                    # Crop channel - cropped image of the detected object
+                    self.channel_found_object_crop: object_crop
+                }

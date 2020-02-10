@@ -8,35 +8,37 @@ OCR service.
 import cv2
 import pytesseract
 from PIL import Image
-from typing import Any
+from typing import Any, Dict
 
 # Local imports
 from threadable import WorkerPipe
 
 
 class Ocr(WorkerPipe):
-    def _consume(self, item: Any) -> Any:
+    channel_text = "channel_text"
+
+    def _process_input_job(self, input_job: Any) -> Dict[str, Any]:
         """
         Description
         --
-        Consumes a work item.
+        OCRs an image.
 
         Parameters
         --
-        - item - image frame (ndarray)
+        - input_job - An image which to OCR.
 
         Returns
         --
-        OCR-ed string.
+        The text on the image.
         """
 
-        if item is None:
+        if input_job is None:
             return
 
         # cv2.imshow("plate_crop", item)
         # cv2.waitKey(1)
 
-        image_crop = cv2.resize(item, None, fx=2, fy=2, interpolation=cv2.INTER_LINEAR)
+        image_crop = cv2.resize(input_job, None, fx=2, fy=2, interpolation=cv2.INTER_LINEAR)
 
         # Pre-processing
         image_crop = cv2.medianBlur(image_crop, 5)
@@ -55,7 +57,8 @@ class Ocr(WorkerPipe):
             Image.fromarray(image_crop),
             config='--psm 7 -l eng -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')
 
-        # TODO: Confidence
-        self._logger.info(text)
+        if text:
+            # TODO: Confidence
+            self._logger.info(text)
 
-        return text
+            return {self.channel_text: text}

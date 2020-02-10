@@ -13,6 +13,8 @@ from threadable import WorkerPipe
 
 
 class PlateLookup(WorkerPipe):
+    channel_plate_info = "channel_plate_info"
+
     @functools.lru_cache
     def _lookup(self, plate: str) -> Dict[str, Any]:
         """
@@ -39,21 +41,21 @@ class PlateLookup(WorkerPipe):
             "Year": 2005
         }
 
-    def _consume(self, item: Any) -> Any:
+    def _process_input_job(self, input_job: Any) -> Dict[str, Any]:
         """
         Description
         --
-        Consumes a license plate number.
+        Looks up a plate number.
 
         Parameters
         --
-        - item - license plate number (str)
+        - input_job - license plate number to lookup.
 
         Returns
         --
-        License plate information.
+        License plate info.
         """
 
-        if item:
-            info = self._lookup(item)
-            return info
+        if input_job:
+            info = self._lookup(input_job)
+            return {self.channel_plate_info: info}
