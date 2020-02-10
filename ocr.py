@@ -11,10 +11,10 @@ from PIL import Image
 from typing import Any, Dict
 
 # Local imports
-from threadable import WorkerPipe
+from worker import Worker
 
 
-class Ocr(WorkerPipe):
+class Ocr(Worker):
     channel_text = "channel_text"
 
     def _process_input_job(self, input_job: Any) -> Dict[str, Any]:

@@ -25,10 +25,10 @@ if __name__ == '__main__':
     logger.setup()
     pytesseract.pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
-    # Create worker pipes
+    # Create workers
     interface = ui.Cv2UserInterface(jobs_limit=30)
-    video_feed = fp.VideoFeed('images\\VID_20200205_080142.mp4', jobs_limit=128)
-    object_finder = of.ObjectFinder('classifiers\\generic_license_plates.xml', jobs_limit=1)
+    video_feed = fp.VideoFeed('images\\VID_20200205_080142.mp4', jobs_limit=60)
+    object_finder = of.ObjectFinder('classifiers\\mn_license_plates.xml', jobs_limit=1)
     plate_lookup = pl.PlateLookup(jobs_limit=5)
     ocr_service = ocr.Ocr(jobs_limit=5)
 
@@ -39,9 +39,9 @@ if __name__ == '__main__':
 
     # Object Finder -> Video feed | OCR
     object_finder\
-        .link_to(video_feed, object_finder.channel_found_object_coords)\
-        .link_to(ocr_service, object_finder.channel_found_object_crop)\
-        # .main_loop_sleep_s = 0.1
+        .link_to(video_feed, object_finder.channel_object_rectangle)\
+        .link_to(ocr_service, object_finder.channel_object_crop)\
+        .y_crop_ratio = 0.25  # Crop upper and lower 1/4 of the images
 
     # OCR -> Plate Lookup
     ocr_service.link_to(plate_lookup, ocr_service.channel_text)
@@ -49,14 +49,14 @@ if __name__ == '__main__':
     # Plate lookup -> Video feed
     # plate_lookup.link_to(video_feed, plate_lookup.channel_plate_info)
 
-    # Start the pipes
+    # Start the workers
     plate_lookup.start()
     ocr_service.start()
     object_finder.start()
     video_feed.start()
     interface.start(True)
 
-    # Interface stopped, stop the pipes ...
+    # Interface stopped, stop the workers ...
     video_feed.stop()
     object_finder.stop()
     ocr_service.stop()

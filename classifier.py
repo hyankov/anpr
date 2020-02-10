@@ -12,12 +12,12 @@ import cv2
 from numpy import ndarray
 
 # Local imports
-from threadable import WorkerPipe
+from worker import Worker
 
 
-class ObjectFinder(WorkerPipe):
-    channel_found_object_crop = 'channel_found_object_crop'
-    channel_found_object_coords = 'channel_found_object_coords'
+class ObjectFinder(Worker):
+    channel_object_crop = 'channel_object_crop'
+    channel_object_rectangle = 'channel_object_rectangle'
 
     def __init__(self, cascade_file: str, jobs_limit=0) -> None:
         """
@@ -37,12 +37,15 @@ class ObjectFinder(WorkerPipe):
         if not cascade_file:
             raise ValueError("cascade_file is required")
 
-        # Tuned for license plates, by default
-        self.min_object_size = (125, 40)
-        self.max_object_size = (125 * 3, 40 * 3)
-        self.y_crop_ratio = 0.25
-        self.scale = 1.10       # 1.05 to 1.4
-        self.min_neighbors = 4  # 3 to 6
+        self.min_object_size = None  # type: Tuple(int, int)
+        self.max_object_size = None  # type: Tuple(int, int)
+        self.scale = 1.25       # 1.05 to 1.4
+        self.min_neighbors = 5  # 3 to 6
+
+        # TODO: User-specified
+        # A crop ratio of 1/4 (0.25) means the image is split in 4 and the
+        # upper and bottom 1/4 parts are cropped out. 0 for no-cropping
+        self.y_crop_ratio = 0
 
         # Load the classifier
         self._watch_cascade = cv2.CascadeClassifier(cascade_file)
@@ -74,57 +77,46 @@ class ObjectFinder(WorkerPipe):
         return [left, top, right - left, bottom - top]
 
     def _get_object_crop(self, original_image: ndarray) -> Tuple[ndarray, ndarray]:
-        # See https://stackoverflow.com/a/20805153/253266
-        # See https://dev.to/petercour/car-number-plate-detection-with-python-4n7g
-
         orig_y, orig_x, _ = original_image.shape
 
-        # Only process the center of the image
-        # TODO: Calibration (choose what part of the screen to process)
+        # Crop the image to particular area we're interested in
         y_padding = int(orig_y * self.y_crop_ratio)
         cropped_image = original_image[y_padding: orig_y - y_padding, 0: orig_x]
 
-        watches = self._watch_cascade.detectMultiScale(
+        # See https://stackoverflow.com/a/20805153/253266
+        detections = self._watch_cascade.detectMultiScale(
             cropped_image,
             self.scale,
             self.min_neighbors,
             minSize=self.min_object_size,
             maxSize=self.max_object_size)
 
-        if watches is not None and len(watches) > 0:
-            # Widest rectangle first
-            watch = sorted(watches, key=lambda watch: watch[2])[0]
+        if detections is None or len(detections) == 0:
+            # No detection
+            return None
 
-            (x, y, w, h) = watch
+        # Widest rectangle first
+        detection = sorted(detections, key=lambda d: d[2])[0]
 
-            # Magic
-            """
-            x -= w * 0.14
-            w += w * 0.28
-            y -= h * 0.15
-            h += h * 0.3
-            """
+        (x, y, w, h) = detection
 
-            # Crop the object
-            cropped = self._crop_image(cropped_image, (int(x), int(y), int(w), int(h))).copy()
+        # Crop the object
+        cropped = self._crop_image(cropped_image, (int(x), int(y), int(w), int(h))).copy()
 
-            # Get the object highlight (rectangle around it)
-            crop_rectangle = (
-                (
-                    int(x),
-                    int(y) + y_padding
-                ),
-                (
-                    int((x + w) * self.scale),
-                    int((y + y_padding + h) * self.scale)
-                )
+        # Get the object highlight (rectangle around it)
+        crop_rectangle = (
+            (
+                int(x),
+                int(y) + y_padding
+            ),
+            (
+                int((x + w)),
+                int((y + y_padding + h))
             )
+        )
 
-            # Found
-            return (cropped, crop_rectangle)
-
-        # Not found
-        return None
+        # Found
+        return (cropped, crop_rectangle)
 
     def _process_input_job(self, input_job: Any) -> Dict[str, Any]:
         """
@@ -150,9 +142,9 @@ class ObjectFinder(WorkerPipe):
                 object_crop, crop_rectangle = result
 
                 return {
-                    # Coords channel - detected object coordinates on frame
-                    self.channel_found_object_coords: crop_rectangle,
+                    # Rectangle channel - detected object rectangle X, Y, W, H
+                    self.channel_object_rectangle: crop_rectangle,
 
                     # Crop channel - cropped image of the detected object
-                    self.channel_found_object_crop: object_crop
+                    self.channel_object_crop: object_crop
                 }

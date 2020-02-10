@@ -9,10 +9,10 @@ import functools
 from typing import Any, Dict
 
 # Local imports
-from threadable import WorkerPipe
+from worker import Worker
 
 
-class PlateLookup(WorkerPipe):
+class PlateLookup(Worker):
     channel_plate_info = "channel_plate_info"
 
     @functools.lru_cache

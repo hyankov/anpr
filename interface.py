@@ -11,10 +11,10 @@ from typing import Any, Dict
 import cv2
 
 # Local imports
-from threadable import WorkerPipe
+from worker import Worker
 
 
-class Cv2UserInterface(WorkerPipe):
+class Cv2UserInterface(Worker):
     """
     Simple cv2-based user interface.
     """
@@ -63,9 +63,8 @@ class Cv2UserInterface(WorkerPipe):
         """
 
         # Prepare the visual window
-        cv2.namedWindow(self.window_name)  # cv2.WND_PROP_FULLSCREEN)
-        # cv2.resizeWindow(self.window_name, 320, 240)
-        # cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.namedWindow(self.window_name, cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     def _on_stopped(self) -> None:
         """

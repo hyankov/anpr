@@ -16,10 +16,10 @@ from typing import Any, Dict, List
 import logger as log
 
 
-class WorkerPipe:
+class Worker:
     """
-    A worker 'pipe' that reads input and pushes produced
-    output to other pipes.
+    A worker that reads input and pushes produced output to
+    other workers.
     """
 
     def __init__(self, jobs_limit: int = 0):
@@ -40,7 +40,7 @@ class WorkerPipe:
         # Logging
         self._logger = log.get_module_logger(self.__class__.__name__)
 
-        # Connections to other pipes/receivers
+        # Connections to other workers
         self._recipients = {}  # type: Dict[str, List[Any]]
 
         self._wait_for_job_s = 1  # How long to wait for a job. 0 for no waiting.
@@ -126,7 +126,8 @@ class WorkerPipe:
                                     try:
                                         recipient.receive(result)
                                     except queue.Full:
-                                        self._logger.debug("Queue of {} is full, cannot receive job.".format(recipient))
+                                        # self._logger.debug("Queue of {} is full, cannot receive job.".format(recipient))
+                                        pass
 
                 # Sleep before next job, to give other threads a chance
                 time.sleep(self.main_loop_sleep_s)
@@ -158,17 +159,17 @@ class WorkerPipe:
 
         pass
 
-    def link_to(self, recipient: WorkerPipe, channel: str = None) -> WorkerPipe:
+    def link_to(self, recipient: Worker, channel: str = None) -> Worker:
         """
         Description
         --
-        Link the `channel` output of the pipe to `recipient`.
+        Link the `channel` output of the worker to `recipient`.
 
         Parameters
         --
-        - recipient - the pipe which will receive the channel
-        output of this pipe.
-        - channel - the output channel of this pipe, which we link to
+        - recipient - the worker which will receive the channel
+        output of this worker.
+        - channel - the output channel of this worker, which we link to
         the `recipient`. If none specified, it will be the default,
         main channel.
 
@@ -204,7 +205,7 @@ class WorkerPipe:
 
         self.queue.put_nowait(job)
 
-    def start(self, blocking=False) -> WorkerPipe:
+    def start(self, blocking=False) -> Worker:
         """
         Description
         --
@@ -237,7 +238,7 @@ class WorkerPipe:
 
         return self
 
-    def stop(self) -> WorkerPipe:
+    def stop(self) -> Worker:
         """
         Description
         --

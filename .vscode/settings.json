@@ -7,6 +7,8 @@
     "python.pythonPath": ".env\\Scripts\\python.exe",
     "files.exclude": {
         ".env": true,
+        "images": true,
+        "training": true,
         "platescanner.egg-info": true
     }
 }

@@ -1,5 +1,10 @@
 # TODO: Document
 
+# Training Classifier
+https://docs.opencv.org/master/dc/d88/tutorial_traincascade.html
+https://amin-ahmadi.com/cascade-trainer-gui
+https://kumartechnicalarticles.wordpress.com/2017/03/11/opencv-cascade-training-parameter-tunning
+
 # TODO
 - Picture-in-picture info
 - Logging (separete logger for detected plates and stolen vehicles)
