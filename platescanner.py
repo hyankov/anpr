@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
     # Create workers
     interface = ui.Cv2UserInterface(False, jobs_limit=30)
-    video_feed = fp.VideoFeed('videos\\mn_video1.mp4', jobs_limit=60)
+    video_feed = fp.VideoFeed(0, jobs_limit=60)  # 'videos\\mn_video1.mp4'
     object_finder = of.ObjectFinder('classifiers\\mn_license_plates.xml', jobs_limit=1)
     plate_lookup = pl.PlateLookup(jobs_limit=5)
     ocr_service = ocr.Ocr(jobs_limit=5)
@@ -35,9 +35,9 @@ if __name__ == '__main__':
     object_finder\
         .link_to(video_feed, object_finder.channel_object_rectangle)\
         .link_to(ocr_service, object_finder.channel_object_crop)\
-        .y_crop_ratio = 0.16  # Crop upper and lower 1/6th of the images
-    object_finder.scale = 1.4
-    object_finder.min_neighbors = 6
+        # .y_crop_ratio = 0.16  # Crop upper and lower 1/6th of the images
+    object_finder.scale = 1.05
+    object_finder.min_neighbors = 5
 
     # OCR -> Plate Lookup
     ocr_service.link_to(plate_lookup, ocr_service.channel_text)
