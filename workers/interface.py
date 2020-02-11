@@ -11,7 +11,7 @@ from typing import Any, Dict
 import cv2
 
 # Local imports
-from worker import Worker
+from .worker import Worker
 
 
 class Cv2UserInterface(Worker):

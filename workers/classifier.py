@@ -12,7 +12,7 @@ import cv2
 from numpy import ndarray
 
 # Local imports
-from worker import Worker
+from .worker import Worker
 
 
 class ObjectFinder(Worker):

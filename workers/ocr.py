@@ -11,7 +11,7 @@ from PIL import Image
 from typing import Any, Dict
 
 # Local imports
-from worker import Worker
+from .worker import Worker
 
 
 class Ocr(Worker):

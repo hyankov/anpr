@@ -9,7 +9,7 @@ import functools
 from typing import Any, Dict
 
 # Local imports
-from worker import Worker
+from .worker import Worker
 
 
 class PlateLookup(Worker):

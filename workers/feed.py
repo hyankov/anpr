@@ -5,20 +5,105 @@ Provides various frame sources (camera, video, random pictures)
 """
 
 # System imports
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
+import os
+import urllib3
+import ssl
 
 # 3rd party imports
 import cv2
+import numpy as np
 
 # Local imports
-from worker import Worker
+from .worker import Worker
 
 
-class VideoFeed(Worker):
+class FrameProvider:
+    def start(self) -> None:
+        pass
+
+    def get(self) -> Tuple[bool, Any]:
+        return (False, None)
+
+    def stop(self) -> None:
+        pass
+
+
+class IPCameraFrameProvider(FrameProvider):
+    def __init__(self, url: str):
+        if not url:
+            raise ValueError("url is required")
+
+        self._url = url
+
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+    def get(self) -> Tuple[bool, Any]:
+        try:
+            img_resp = urllib3.urlopen(self._url)
+            img_np = np.array(bytearray(img_resp.read()), dtype=np.uint8)
+
+            return (True, cv2.imdecode(img_np, -1))
+        except Exception:
+            return (False, None)
+
+
+class CameraFrameProvider(FrameProvider):
+    def __init__(self, camera_index: int = 0) -> None:
+        """
+        Description
+        --
+        Initializes the instance.
+
+        Parameters
+        --
+        - source - The camera index.
+        """
+
+        self._source = camera_index
+        self._stream = None
+
+    def start(self):
+        # Get a handle on the stream
+        self._stream = cv2.VideoCapture(self._source)
+
+    def get(self) -> Tuple[bool, Any]:
+        return self._stream.read()
+
+    def stop(self):
+        # Release the stream
+        self._stream.release()
+
+
+class VideoFrameProvider(CameraFrameProvider):
+    def __init__(self, video_file_path: str) -> None:
+        """
+        Description
+        --
+        Initializes the instance.
+
+        Parameters
+        --
+        - video_file_path - The path to the video file.
+        """
+
+        if not video_file_path:
+            raise ValueError("video_file_path is required")
+
+        if not os.path.isfile(video_file_path):
+            raise ValueError("File not found {}".format(video_file_path))
+
+        self._source = video_file_path
+        self._stream = None
+
+
+class FrameFeed(Worker):
     channel_raw = "channel_raw"
     channel_processed = "channel_processed"
 
-    def __init__(self, source: Any = 0, jobs_limit=0):
+    def __init__(self, frame_provider: FrameProvider = CameraFrameProvider(), jobs_limit=0) -> None:
         """
         Description
         --
@@ -43,7 +128,7 @@ class VideoFeed(Worker):
         # in the queue.
         self._wait_for_job_s = 0
 
-        self._source = source
+        self._frame_provider = frame_provider
         self._stream = None
         self._cached_highlight = None
         self._cached_highlights_count = 0
@@ -64,7 +149,7 @@ class VideoFeed(Worker):
         Raw image (without an overlay) and an image with an overlay.
         """
 
-        grabbed, frame = self._stream.read()
+        grabbed, frame = self._frame_provider.get()
 
         if grabbed:
             # If caching is enabled ...
@@ -107,8 +192,7 @@ class VideoFeed(Worker):
         Called before the main loop.
         """
 
-        # Get a handle on the stream
-        self._stream = cv2.VideoCapture(self._source)
+        self._frame_provider.start()
 
     def _on_stopped(self) -> None:
         """
@@ -117,5 +201,4 @@ class VideoFeed(Worker):
         Called after the main loop.
         """
 
-        # Release the stream
-        self._stream.release()
+        self._frame_provider.stop()

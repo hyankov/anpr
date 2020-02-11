@@ -13,7 +13,7 @@ import time
 from typing import Any, Dict, List
 
 # Local imports
-import log
+from logger import log
 
 
 class Worker:
