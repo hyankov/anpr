@@ -34,6 +34,11 @@ Feed --raw frame--> Classifier --cropped image--> OCR --plate text--> Plate Look
      -processed frame--> Interface --render--> Screen
 ```
 
+# How to test it out?
+If you are not running the script on a portable device such as Raspberry Pi, you can print out a photo of a car with a Minnesota license plate and show it in front of the camera of your computer. It should be able to detect, highlight it and OCR it.
+
+Note that the OCR service is under development and does not provide good results yet.
+
 # Samples
 Screen captures of license plates highlighted (pink rectangle) in real time while video feed is streaming. Plates blurred out during writing this documentation, not part of the workflow.
 
