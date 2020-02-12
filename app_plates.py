@@ -1,8 +1,8 @@
 """
 Description
 --
-Setting up the workers for a license plate recognition
-and lookup.
+A configuration which is setup to detect and read
+Minnesota license plates.
 """
 
 # Local imports
@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
     # Create workers
     interface = ui.Cv2UserInterface(jobs_limit=30)
-    # frame_feed = fp.FrameFeed(fp.VideoFrameProvider('videos\\VID_20200205_080051.mp4'), jobs_limit=60)
+    # frame_feed = fp.FrameFeed(fp.VideoFrameProvider('videos\\mn_video1.mp4'), jobs_limit=60)
     frame_feed = fp.FrameFeed(fp.CameraFrameProvider(), jobs_limit=60)
     object_finder = of.ObjectFinder('classifiers\\mn_license_plates.xml', jobs_limit=1)
     plate_lookup = pl.PlateLookup(jobs_limit=5)

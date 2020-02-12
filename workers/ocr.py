@@ -17,17 +17,51 @@ from .worker import Worker
 class Ocr(Worker):
     channel_text = "channel_text"
 
+    def __init__(self, jobs_limit=0):
+        """
+        Description
+        --
+        Initializes the instance.
+
+        Parameters
+        --
+        - jobs_limit - (see base)
+        """
+
+        super().__init__(jobs_limit=jobs_limit)
+
+        # Pre-processing settings
+        self.blur = 5
+        self.threshold_block = 11
+        self.threshold_val = 8
+
     def _pre_process_image(self, img):
+        """
+        Description
+        --
+        Pre-processes the image, for better OCR.
+
+        Parameters
+        --
+        - img - the image
+
+        Returns
+        --
+        The processed image.
+        """
+
         pre_processed_image = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_LINEAR)
 
-        pre_processed_image = cv2.medianBlur(pre_processed_image, 5)
+        if self.blur:
+            pre_processed_image = cv2.medianBlur(pre_processed_image, self.blur)
+
         pre_processed_image = cv2.adaptiveThreshold(
             cv2.cvtColor(pre_processed_image, cv2.COLOR_RGB2GRAY),
             255,
             cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY,
-            11,
-            8)
+            self.threshold_block,
+            self.threshold_val)
 
         return pre_processed_image
 

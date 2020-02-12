@@ -112,27 +112,32 @@ class Worker:
             # Encountering `_main_loop_breaker` will break us out and effectively
             # end the thread.
             for job in iter(self._get_next_job, self._main_loop_sentry):
-                # Consume the input job and produce output jobs
-                results = self._process_input_job(job)
+                try:
+                    # Consume the input job and produce output jobs
+                    results = self._process_input_job(job)
 
-                # Propagate result to subscribers
-                if self._recipients and results is not None:
-                    # Publish the non-None result to all recipients
-                    for r_channel in results.keys():
-                        if r_channel in self._recipients.keys():
-                            for recipient in self._recipients[r_channel]:
-                                result = results[r_channel]
-                                if result is not None:
-                                    try:
-                                        recipient.receive(result)
-                                    except queue.Full:
-                                        # self._logger.debug("Queue of {} is full, cannot receive job.".format(recipient))
-                                        pass
+                    # Propagate result to subscribers
+                    if self._recipients and results is not None:
+                        # Publish the non-None result to all recipients
+                        for r_channel in results.keys():
+                            if r_channel in self._recipients.keys():
+                                for recipient in self._recipients[r_channel]:
+                                    result = results[r_channel]
+                                    if result is not None:
+                                        try:
+                                            recipient.receive(result)
+                                        except queue.Full:
+                                            # self._logger.debug("Queue of {} is full, cannot receive job.".format(recipient))
+                                            pass
 
-                # Sleep before next job, to give other threads a chance
-                time.sleep(self.main_loop_sleep_s)
+                    # Sleep before next job, to give other threads a chance
+                    time.sleep(self.main_loop_sleep_s)
+                except Exception:
+                    # Unhandled exception in the main loop
+                    self._logger.error("Fatal error in an iteration of the main loop", exc_info=True)
         except Exception:
-            self._logger.error("Fatal error in main loop", exc_info=True)
+            # Unhandled exception in the main loop
+            self._logger.error("Fatal error, which broke us out of the main loop", exc_info=True)
         finally:
             # The main loop ended
             self._logger.debug("On stopped")

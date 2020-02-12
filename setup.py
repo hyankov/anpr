@@ -50,7 +50,7 @@ setup(
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#summary
-    description='License plate information on the go.',  # Optional
+    description='Computer Vision experiment.',  # Optional
 
     # This is an optional longer description of your project that represents
     # the body of text which users will see when they visit PyPI.
@@ -93,7 +93,7 @@ setup(
     # and refuse to install the project if the version does not match. If you
     # do not support Python 2, you can simplify this to '>=3.5' or similar, see
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
-    python_requires='>=3.7',
+    python_requires='>=3.8',
 
     # This field lists other packages that your project depends on to run.
     # Any package you put here will be installed by pip when your project is
